@@ -1,0 +1,20 @@
+# Carpeta .venv
+.venv/
+
+# Carpeta de cache
+__pycache_/
+
+# Archivo .env (Contiene datos de api)
+.env
+
+# Contenido carpeta input. Aqui se encuentra watchlist.csv
+data/input/*
+
+# Contenido carpeta processed. Aqui se encuentran watchlist_{date}.csv ya procesados
+data/processed/*
+
+# Mantiene carpeta input
+!data/input/.gitkeep
+
+# Mantiene carpeta processed
+!data/processed/.gitkeep
