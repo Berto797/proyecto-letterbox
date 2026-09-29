@@ -2,7 +2,7 @@
 .venv/
 
 # Carpeta de cache
-__pycache_/
+__pycache__/
 
 # Archivo .env (Contiene datos de api)
 .env
