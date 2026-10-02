@@ -28,9 +28,6 @@ def test_extract_csv_valid_file(tmp_path, encoding):
     csv_file.write_text(VALID_CSV, encoding=encoding)
 
     film_list = _extract_csv(csv_file)
-    csv_file.write_text(VALID_CSV, encoding=encoding)
-
-    film_list = _extract_csv(csv_file)
 
     assert len(film_list) == 4
     assert film_list[0]["Name"] == "Portrait of a Lady on Fire"
