@@ -1,6 +1,6 @@
 import pytest
 
-from extract import _extract_csv
+from extract import _extract_csv, _get_csv_files
 
 VALID_CSV = """Date,Name,Year,Letterboxd URI
 2026-01-01,Portrait of a Lady on Fire,2019,https://boxd.it/jkPq
@@ -81,3 +81,53 @@ def test_extract_csv_extra_columns(tmp_path):
     assert film_list[0]["Name"] == "Portrait of a Lady on Fire"
     assert film_list[0]["Year"] == "2019"
     assert film_list[0]["Score"] == "87"
+
+
+@pytest.mark.parametrize(
+    "files_to_create, expected_files",
+    [
+        pytest.param(
+            ["watchlist.csv"],
+            ["watchlist.csv"],
+            id="single_csv",
+        ),
+        pytest.param(
+            ["watchlist.csv", "notes.txt", ".gitkeep"],
+            ["watchlist.csv"],
+            id="csv_and_other_files",
+        ),
+        pytest.param(
+            ["watchlist_1.csv", "watchlist_2.csv"],
+            ["watchlist_1.csv", "watchlist_2.csv"],
+            id="two_csv",
+        ),
+        pytest.param(
+            ["WATCHLIST.CSV"],
+            [],
+            id="uppercase_extension",
+        ),
+        pytest.param(
+            [],
+            [],
+            id="empty_folder",
+        ),
+    ],
+)
+def test_get_csv_files(tmp_path, files_to_create, expected_files):
+    for file_name in files_to_create:
+        (tmp_path / file_name).touch()
+
+    csv_files = _get_csv_files(tmp_path)
+
+    assert sorted(path.name for path in csv_files) == sorted(expected_files)
+
+
+def test_get_csv_files_csv_wrong_path(tmp_path):
+    input_path = tmp_path / "input"
+    csv_file = tmp_path / "watchlist.csv"
+    input_path.mkdir()
+    csv_file.touch()
+
+    csv_files = _get_csv_files(input_path)
+
+    assert csv_files == []
