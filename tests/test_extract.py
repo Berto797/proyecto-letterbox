@@ -1,6 +1,8 @@
+from pathlib import Path
+
 import pytest
 
-from extract import _extract_csv, _get_csv_files
+from extract import _extract_csv, _get_csv_files, _get_single_csv
 
 VALID_CSV = """Date,Name,Year,Letterboxd URI
 2026-01-01,Portrait of a Lady on Fire,2019,https://boxd.it/jkPq
@@ -131,3 +133,35 @@ def test_get_csv_files_csv_wrong_path(tmp_path):
     csv_files = _get_csv_files(input_path)
 
     assert csv_files == []
+
+
+@pytest.mark.parametrize(
+    "csv_names, expected_error, expected_exception",
+    [
+        pytest.param(
+            [],
+            "ningún CSV",
+            FileNotFoundError,
+            id="empty_list",
+        ),
+        pytest.param(
+            ["watchlist_1.csv", "watchlist_2.csv"],
+            "Se esperaba 1 archivo CSV",
+            ValueError,
+            id="two_csv",
+        ),
+    ],
+)
+def test_get_single_csv_invalid(csv_names, expected_error, expected_exception):
+    csv_files = [Path(name) for name in csv_names]
+
+    with pytest.raises(expected_exception, match=expected_error):
+        _get_single_csv(Path("input"), csv_files)
+
+
+def test_get_single_csv_single_csv():
+    csv_file = Path("watchlist.csv")
+
+    result = _get_single_csv(Path("input"), [csv_file])
+
+    assert result == csv_file
