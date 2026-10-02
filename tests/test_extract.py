@@ -2,7 +2,13 @@ from pathlib import Path
 
 import pytest
 
-from extract import _extract_csv, _get_csv_files, _get_single_csv
+import extract
+from extract import (
+    _extract_csv,
+    _get_csv_files,
+    _get_single_csv,
+    move_to_processed,
+)
 
 VALID_CSV = """Date,Name,Year,Letterboxd URI
 2026-01-01,Portrait of a Lady on Fire,2019,https://boxd.it/jkPq
@@ -165,3 +171,65 @@ def test_get_single_csv_single_csv():
     result = _get_single_csv(Path("input"), [csv_file])
 
     assert result == csv_file
+
+
+@pytest.mark.parametrize(
+    "keep_original, original_should_exist",
+    [
+        pytest.param(
+            True,
+            True,
+            id="keep_original",
+        ),
+        pytest.param(
+            False,
+            False,
+            id="no_keep_original",
+        ),
+    ],
+)
+def test_move_to_processed_valid(
+    tmp_path, monkeypatch, keep_original, original_should_exist
+):
+    input_dir = tmp_path / "input"
+    processed_dir = tmp_path / "processed"
+    input_dir.mkdir()
+    processed_dir.mkdir()
+    csv_file = input_dir / "watchlist.csv"
+    csv_file.write_text("test", encoding="utf-8")
+    monkeypatch.setattr(extract, "PROCESSED_DIR", processed_dir)
+
+    result = move_to_processed(csv_file, keep_original=keep_original)
+
+    assert result.exists()
+    assert result.parent == processed_dir
+    assert result.name.startswith("watchlist_")
+    assert result.name.endswith(".csv")
+    assert result.read_text(encoding="utf-8") == "test"
+    assert csv_file.exists() == original_should_exist
+
+
+@pytest.mark.parametrize(
+    "keep_original",
+    [
+        pytest.param(
+            True,
+            id="keep_original_no_processed_dir",
+        ),
+        pytest.param(
+            False,
+            id="no_keep_original_no_processed_dir",
+        ),
+    ],
+)
+def test_move_to_processed_invalid(tmp_path, monkeypatch, keep_original):
+    input_dir = tmp_path / "input"
+    processed_dir = tmp_path / "processed"
+    input_dir.mkdir()
+    csv_file = input_dir / "watchlist.csv"
+    csv_file.write_text("test", encoding="utf-8")
+    monkeypatch.setattr(extract, "PROCESSED_DIR", processed_dir)
+
+    with pytest.raises(OSError):
+        move_to_processed(csv_file, keep_original=keep_original)
+    assert csv_file.exists()
