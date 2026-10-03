@@ -63,34 +63,46 @@ def _validate_has_films(csv_file, film_list):
         )
 
 
-def move_to_processed(csv_file, keep_original=False):
-    """Mueve o copia el CSV procesado a la carpeta processed.
+def define_processed_name(csv_file):
+    """Construye la ruta de destino del CSV en la carpeta processed.
 
     Al nombre del archivo se le añade un sufijo con la fecha y hora
-    actuales, según el formato definido en TIMESTAMP_FORMAT.
+    actuales en UTC, según el formato definido en TIMESTAMP_FORMAT.
+    No crea, mueve ni copia ningún archivo.
 
     Args:
-        csv_file: Ruta del CSV a mover o copiar.
-        keep_original: Si es True, copia el archivo y conserva el original
-            en input. Si es False, lo mueve.
+        csv_file: Ruta del CSV original.
 
     Returns:
-        Ruta del archivo en la carpeta processed.
-
-    Raises:
-        OSError: Si no se puede copiar o mover el archivo (por ejemplo,
-            si no existe la carpeta de destino o no hay permisos).
+        Ruta del archivo dentro de PROCESSED_DIR, con el formato
+        {nombre}_{timestamp}{extensión}.
     """
     current_time = datetime.now(UTC).strftime(TIMESTAMP_FORMAT)
     csv_name = csv_file.stem
     csv_extension = csv_file.suffix
     csv_processed_name = f"{csv_name}_{current_time}{csv_extension}"
     csv_processed_path = PROCESSED_DIR / csv_processed_name
+    return csv_processed_path
+
+
+def move_to_processed(csv_file, csv_processed_path, keep_original=False):
+    """Mueve o copia el CSV a su ruta de destino en la carpeta processed.
+
+    Args:
+        csv_file: Ruta del CSV a mover o copiar.
+        csv_processed_path: Ruta de destino, normalmente obtenida con
+            define_processed_name.
+        keep_original: Si es True, copia el archivo y conserva el original
+            en input. Si es False, lo mueve.
+
+    Raises:
+        OSError: Si no se puede copiar o mover el archivo (por ejemplo,
+            si no existe la carpeta de destino o no hay permisos).
+    """
     if keep_original:
         shutil.copy2(csv_file, csv_processed_path)
     else:
         shutil.move(csv_file, csv_processed_path)
-    return csv_processed_path
 
 
 def extract():
@@ -116,7 +128,7 @@ def extract():
 if __name__ == "__main__":
     try:
         csv_file, film_list = extract()
-        csv_processed_path = move_to_processed(csv_file, keep_original=True)
-        print(csv_processed_path)
-    except (FileNotFoundError, ValueError) as e:
+        csv_processed_path = define_processed_name(csv_file)
+        move_to_processed(csv_file, csv_processed_path, keep_original=True)
+    except (ValueError, OSError) as e:
         print(e)
