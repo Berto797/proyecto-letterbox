@@ -35,8 +35,8 @@ INSERT_RAW_WATCHLIST = """
 
 def _open_connection():
     return psycopg.connect(
-        host="localhost",
-        port=5432,
+        host=os.environ["POSTGRES_HOST"],
+        port=os.environ["POSTGRES_PORT"],
         dbname=os.environ["POSTGRES_DB"],
         user=os.environ["POSTGRES_USER"],
         password=os.environ["POSTGRES_PASSWORD"],
@@ -68,7 +68,8 @@ def load_raw(csv_processed_path, film_list):
 
     Raises:
         KeyError: Si falta alguna variable de conexión en el entorno
-            (POSTGRES_DB, POSTGRES_USER o POSTGRES_PASSWORD).
+            (POSTGRES_HOST, POSTGRES_PORT, POSTGRES_DB, POSTGRES_USER
+            o POSTGRES_PASSWORD).
         psycopg.Error: Si falla la conexión con PostgreSQL o la
             inserción de las filas.
     """
