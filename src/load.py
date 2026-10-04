@@ -13,6 +13,25 @@ MAPPING_HEADERS = {
     "Letterboxd URI": "letterboxd_uri",
 }
 
+INSERT_RAW_WATCHLIST = """
+    INSERT INTO raw_watchlist (
+        watchlisted_at,
+        film_name,
+        film_year,
+        letterboxd_uri,
+        extra_fields,
+        source_file
+    )
+    VALUES (
+        %(watchlisted_at)s,
+        %(film_name)s,
+        %(film_year)s,
+        %(letterboxd_uri)s,
+        %(extra_fields)s,
+        %(source_file)s
+    )
+"""
+
 
 def _open_connection():
     return psycopg.connect(
@@ -41,16 +60,22 @@ def load_raw(csv_processed_path, film_list):
     transacción: si alguna falla, no se guarda ninguna.
 
     Args:
-
+        csv_processed_path: Ruta del CSV en la carpeta processed,
+            normalmente obtenida con define_processed_name. Su nombre
+            se guarda en la columna source_file.
+        film_list: Lista de diccionarios devuelta por extract(), uno
+            por película, con los encabezados del CSV como claves.
 
     Raises:
-
+        KeyError: Si falta alguna variable de conexión en el entorno
+            (POSTGRES_DB, POSTGRES_USER o POSTGRES_PASSWORD).
+        psycopg.Error: Si falla la conexión con PostgreSQL o la
+            inserción de las filas.
     """
     rows = [_build_row(csv_processed_path, film) for film in film_list]
-    print(rows)
 
-    with _open_connection() as conn:
-        conn.execute("SELECT 1")
+    with _open_connection() as conn, conn.cursor() as cur:
+        cur.executemany(INSERT_RAW_WATCHLIST, rows)
 
 
 if __name__ == "__main__":
@@ -60,5 +85,5 @@ if __name__ == "__main__":
         csv_file, film_list = extract()
         csv_processed_path = define_processed_name(csv_file)
         load_raw(csv_processed_path, film_list)
-    except (ValueError, KeyError) as e:
+    except (ValueError, OSError, KeyError, psycopg.Error) as e:
         print(e)
