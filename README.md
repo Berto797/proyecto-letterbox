@@ -24,7 +24,7 @@ data/processed/watchlist_<timestamp>.csv   (only after a successful load)
 - Python 3.14
 - PostgreSQL 17 (Docker Compose)
 - psycopg 3
-- pytest, testcontainers
+- pytest, testcontainers (integration tests)
 - Ruff (linting and formatting)
 
 ## Project structure
@@ -87,6 +87,11 @@ data/processed/watchlist_<timestamp>.csv   (only after a successful load)
 pytest
 ```
 
+- **Unit tests** cover CSV discovery, validation and reading, file handling, and the row transformation before loading.
+- **Integration tests** run `load_raw` against a real, disposable PostgreSQL 17 started with [testcontainers](https://testcontainers.com/). The schema is created from the same `sql/` script used by Docker Compose, so tests never touch your development database.
+
+> Docker must be running for the integration tests. Your `letterbox-db` container does not need to be up: testcontainers starts its own.
+
 ## Design decisions
 
 - **Raw layer stores data as received.** All CSV columns are stored as `TEXT`, with no type conversion or cleaning. Rows with bad values are kept rather than rejected; cleaning belongs to later layers.
@@ -102,6 +107,13 @@ pytest
 - [x] CSV extraction and validation
 - [x] Loading into PostgreSQL (raw layer)
 - [x] Unit tests
-- [ ] Integration tests for the load with testcontainers
+- [x] Integration tests for the load with testcontainers
 - [ ] `main.py` orchestrating extract → load → move to processed
 - [ ] Enrichment with TMDB data
+
+## Disclaimer
+
+This is a personal, non-commercial project.
+
+- This product uses the TMDB API but is not endorsed or certified by [TMDB](https://www.themoviedb.org/).
+- Not affiliated with Letterboxd. It only processes the CSV that each user exports from their own account.
