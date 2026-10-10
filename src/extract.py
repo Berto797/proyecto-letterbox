@@ -123,12 +123,3 @@ def extract():
     csv_file = _get_single_csv(INPUT_DIR, csv_files)
     film_list = _extract_csv(csv_file)
     return csv_file, film_list
-
-
-if __name__ == "__main__":
-    try:
-        csv_file, film_list = extract()
-        csv_processed_path = define_processed_name(csv_file)
-        move_to_processed(csv_file, csv_processed_path, keep_original=True)
-    except (ValueError, OSError) as e:
-        print(e)

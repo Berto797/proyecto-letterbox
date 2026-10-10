@@ -6,6 +6,8 @@ A data pipeline that loads a [Letterboxd](https://letterboxd.com/) watchlist exp
 
 ## How it works
 
+`src/main.py` runs the whole pipeline:
+
 ```
 data/input/watchlist.csv
         │
@@ -36,7 +38,8 @@ data/processed/watchlist_<timestamp>.csv   (only after a successful load)
 ├── sql/                # schema, run automatically when the database is created
 ├── src/
 │   ├── extract.py      # CSV discovery, validation and reading
-│   └── load.py         # loading into PostgreSQL
+│   ├── load.py         # loading into PostgreSQL
+│   └── main.py         # entry point: runs the full pipeline
 ├── tests/
 ├── .env.example        # template for your .env
 ├── compose.yaml
@@ -75,13 +78,21 @@ data/processed/watchlist_<timestamp>.csv   (only after a successful load)
 
 4. Export your watchlist from Letterboxd (*Settings → Data → Export your data*) and copy `watchlist.csv` into `data/input/`.
 
-5. Run the load:
+5. Run the pipeline:
 
    ```bash
-   python src/load.py
+   python src/main.py
    ```
 
-> For now `load.py` loads the data but does not move the CSV to `data/processed/`. The full pipeline will be orchestrated by a `main.py` (see [Roadmap](#roadmap)).
+   On success, the CSV is moved from `data/input/` to `data/processed/`. If any step fails, the error is printed to stderr, the program exits with code 1 and the CSV stays in `data/input/`.
+
+   To copy the CSV instead of moving it (handy for repeated test runs), use `--keep-original`:
+
+   ```bash
+   python src/main.py --keep-original
+   ```
+
+> Each run loads the whole export again, as a new snapshot identified by its `source_file`. Duplicates across runs are expected in the raw layer.
 
 ## Tests
 
@@ -89,7 +100,7 @@ data/processed/watchlist_<timestamp>.csv   (only after a successful load)
 pytest
 ```
 
-- **Unit tests** cover CSV discovery, validation and reading, file handling, and the row transformation before loading.
+- **Unit tests** cover CSV discovery, validation and reading, file handling, and the row transformation before loading. They also cover the pipeline in `main.py`, with the database load replaced by a fake: the CSV is only moved after a successful load, and failures exit with code 1.
 - **Integration tests** run `load_raw` against a real, disposable PostgreSQL 17 started with [testcontainers](https://testcontainers.com/). The schema is created from the same `sql/` script used by Docker Compose, so tests never touch your development database.
 
 > Docker must be running for the integration tests. Your `letterbox-db` container does not need to be up: testcontainers starts its own.
@@ -110,7 +121,7 @@ pytest
 - [x] Loading into PostgreSQL (raw layer)
 - [x] Unit tests
 - [x] Integration tests for the load with testcontainers
-- [ ] `main.py` orchestrating extract → load → move to processed
+- [x] `main.py` orchestrating extract → load → move to processed
 - [ ] Enrichment with TMDB data
 
 ## Disclaimer
