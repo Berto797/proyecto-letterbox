@@ -77,14 +77,3 @@ def load_raw(csv_processed_path, film_list):
 
     with _open_connection() as conn, conn.cursor() as cur:
         cur.executemany(INSERT_RAW_WATCHLIST, rows)
-
-
-if __name__ == "__main__":
-    from extract import define_processed_name, extract
-
-    try:
-        csv_file, film_list = extract()
-        csv_processed_path = define_processed_name(csv_file)
-        load_raw(csv_processed_path, film_list)
-    except (ValueError, OSError, KeyError, psycopg.Error) as e:
-        print(e)
