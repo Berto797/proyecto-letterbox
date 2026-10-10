@@ -38,7 +38,9 @@ data/processed/watchlist_<timestamp>.csv   (only after a successful load)
 │   ├── extract.py      # CSV discovery, validation and reading
 │   └── load.py         # loading into PostgreSQL
 ├── tests/
+├── .env.example        # template for your .env
 ├── compose.yaml
+├── pyproject.toml      # pytest configuration
 ├── requirements.txt
 └── requirements-dev.txt
 ```
