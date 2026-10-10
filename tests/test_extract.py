@@ -1,12 +1,15 @@
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 
 import extract
 from extract import (
+    TIMESTAMP_FORMAT,
     _extract_csv,
     _get_csv_files,
     _get_single_csv,
+    define_processed_name,
     move_to_processed,
 )
 
@@ -22,6 +25,32 @@ EXTRA_COLUMNS_CSV = """Date,Name,Year,Letterboxd URI,Score
 2026-01-01,Call Me by Your Name,2017,https://boxd.it/dYmm,82
 2026-01-01,The Handmaiden,2016,https://boxd.it/948A,75
 """
+EXPECTED_FILMS = [
+    {
+        "Date": "2026-01-01",
+        "Name": "Portrait of a Lady on Fire",
+        "Year": "2019",
+        "Letterboxd URI": "https://boxd.it/jkPq",
+    },
+    {
+        "Date": "2026-01-01",
+        "Name": "Get Out",
+        "Year": "2017",
+        "Letterboxd URI": "https://boxd.it/eOCm",
+    },
+    {
+        "Date": "2026-01-01",
+        "Name": "Call Me by Your Name",
+        "Year": "2017",
+        "Letterboxd URI": "https://boxd.it/dYmm",
+    },
+    {
+        "Date": "2026-01-01",
+        "Name": "The Handmaiden",
+        "Year": "2016",
+        "Letterboxd URI": "https://boxd.it/948A",
+    },
+]
 
 
 @pytest.mark.parametrize(
@@ -37,9 +66,7 @@ def test_extract_csv_valid_file(tmp_path, encoding):
 
     film_list = _extract_csv(csv_file)
 
-    assert len(film_list) == 4
-    assert film_list[0]["Name"] == "Portrait of a Lady on Fire"
-    assert film_list[0]["Year"] == "2019"
+    assert film_list == EXPECTED_FILMS
 
 
 @pytest.mark.parametrize(
@@ -82,13 +109,15 @@ def test_extract_csv_invalid_file(tmp_path, content, encoding, expected_error):
 def test_extract_csv_extra_columns(tmp_path):
     csv_file = tmp_path / "watchlist.csv"
     csv_file.write_text(EXTRA_COLUMNS_CSV, encoding="utf-8")
+    scores = ["87", "80", "82", "75"]
+    expected = [
+        {**film, "Score": score}
+        for film, score in zip(EXPECTED_FILMS, scores, strict=True)
+    ]
 
     film_list = _extract_csv(csv_file)
 
-    assert len(film_list) == 4
-    assert film_list[0]["Name"] == "Portrait of a Lady on Fire"
-    assert film_list[0]["Year"] == "2019"
-    assert film_list[0]["Score"] == "87"
+    assert film_list == expected
 
 
 @pytest.mark.parametrize(
@@ -173,6 +202,21 @@ def test_get_single_csv_single_csv():
     assert result == csv_file
 
 
+def test_define_processed_name_valid(monkeypatch):
+    processed_dir = Path("processed")
+    csv_file = Path("watchlist.csv")
+    monkeypatch.setattr(extract, "PROCESSED_DIR", processed_dir)
+
+    result = define_processed_name(csv_file)
+
+    assert not result.exists()
+    assert result.parent == processed_dir
+    assert result.name.startswith("watchlist_")
+    assert result.name.endswith(".csv")
+    timestamp = result.name.removeprefix("watchlist_").removesuffix(".csv")
+    datetime.strptime(timestamp, TIMESTAMP_FORMAT).replace(tzinfo=UTC)
+
+
 @pytest.mark.parametrize(
     "keep_original, original_should_exist",
     [
@@ -188,25 +232,20 @@ def test_get_single_csv_single_csv():
         ),
     ],
 )
-def test_move_to_processed_valid(
-    tmp_path, monkeypatch, keep_original, original_should_exist
-):
+def test_move_to_processed_valid(tmp_path, keep_original, original_should_exist):
     input_dir = tmp_path / "input"
     processed_dir = tmp_path / "processed"
     input_dir.mkdir()
     processed_dir.mkdir()
     csv_file = input_dir / "watchlist.csv"
     csv_file.write_text("test", encoding="utf-8")
-    monkeypatch.setattr(extract, "PROCESSED_DIR", processed_dir)
+    csv_processed_path = processed_dir / "watchlist_test.csv"
 
-    result = move_to_processed(csv_file, keep_original=keep_original)
+    move_to_processed(csv_file, csv_processed_path, keep_original=keep_original)
 
-    assert result.exists()
-    assert result.parent == processed_dir
-    assert result.name.startswith("watchlist_")
-    assert result.name.endswith(".csv")
-    assert result.read_text(encoding="utf-8") == "test"
     assert csv_file.exists() == original_should_exist
+    assert csv_processed_path.exists()
+    assert csv_processed_path.read_text(encoding="utf-8") == "test"
 
 
 @pytest.mark.parametrize(
@@ -222,14 +261,34 @@ def test_move_to_processed_valid(
         ),
     ],
 )
-def test_move_to_processed_invalid(tmp_path, monkeypatch, keep_original):
+def test_move_to_processed_invalid(tmp_path, keep_original):
     input_dir = tmp_path / "input"
     processed_dir = tmp_path / "processed"
     input_dir.mkdir()
     csv_file = input_dir / "watchlist.csv"
     csv_file.write_text("test", encoding="utf-8")
-    monkeypatch.setattr(extract, "PROCESSED_DIR", processed_dir)
+    csv_processed_path = processed_dir / "watchlist_test.csv"
 
     with pytest.raises(OSError):
-        move_to_processed(csv_file, keep_original=keep_original)
+        move_to_processed(csv_file, csv_processed_path, keep_original=keep_original)
     assert csv_file.exists()
+
+
+def test_extract_valid(tmp_path, monkeypatch):
+    csv_file = tmp_path / "watchlist.csv"
+    csv_file.write_text(VALID_CSV, encoding="utf-8")
+    monkeypatch.setattr(extract, "INPUT_DIR", tmp_path)
+
+    result_file, film_list = extract.extract()
+
+    assert result_file == csv_file
+    assert film_list == EXPECTED_FILMS
+
+
+# Los casos de error ya se prueban en _get_single_csv y _extract_csv.
+# Aquí solo se comprueba que los errores se propagan hasta extract().
+def test_extract_invalid(tmp_path, monkeypatch):
+    monkeypatch.setattr(extract, "INPUT_DIR", tmp_path)
+
+    with pytest.raises(FileNotFoundError, match="ningún CSV"):
+        extract.extract()
