@@ -7,13 +7,17 @@ from extract import define_processed_name, extract, move_to_processed
 from load import load_raw
 
 
-def main():
+def main(argv=None):
     """Ejecuta el pipeline completo de la watchlist.
 
     Extrae las películas del CSV de la carpeta input, las carga en la
     tabla raw_watchlist y, solo si la carga termina sin errores, mueve
     el CSV a la carpeta processed. Con la opción --keep-original lo
     copia en lugar de moverlo y conserva el original en input.
+
+    Args:
+        argv: Lista de argumentos de la línea de comandos, sin el
+            nombre del programa. Si es None, se usan los de sys.argv.
 
     Raises:
         SystemExit: Con código 1 si falla algún paso del pipeline (CSV
@@ -32,7 +36,7 @@ def main():
         help="Copia el CSV a processed en lugar de moverlo "
         "(conserva el original en input)",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     try:
         csv_file, film_list = extract()
