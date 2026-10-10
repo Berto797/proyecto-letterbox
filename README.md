@@ -100,7 +100,7 @@ data/processed/watchlist_<timestamp>.csv   (only after a successful load)
 pytest
 ```
 
-- **Unit tests** cover CSV discovery, validation and reading, file handling, and the row transformation before loading.
+- **Unit tests** cover CSV discovery, validation and reading, file handling, and the row transformation before loading. They also cover the pipeline in `main.py`, with the database load replaced by a fake: the CSV is only moved after a successful load, and failures exit with code 1.
 - **Integration tests** run `load_raw` against a real, disposable PostgreSQL 17 started with [testcontainers](https://testcontainers.com/). The schema is created from the same `sql/` script used by Docker Compose, so tests never touch your development database.
 
 > Docker must be running for the integration tests. Your `letterbox-db` container does not need to be up: testcontainers starts its own.
