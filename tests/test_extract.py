@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -60,7 +61,7 @@ EXPECTED_FILMS = [
         pytest.param("utf-8-sig", id="with_bom"),
     ],
 )
-def test_extract_csv_valid_file(tmp_path, encoding):
+def test_extract_csv_valid_file(tmp_path: Path, encoding: str) -> None:
     csv_file = tmp_path / "watchlist.csv"
     csv_file.write_text(VALID_CSV, encoding=encoding)
 
@@ -98,7 +99,9 @@ def test_extract_csv_valid_file(tmp_path, encoding):
         ),
     ],
 )
-def test_extract_csv_invalid_file(tmp_path, content, encoding, expected_error):
+def test_extract_csv_invalid_file(
+    tmp_path: Path, content: str, encoding: str, expected_error: str
+) -> None:
     csv_file = tmp_path / "watchlist.csv"
     csv_file.write_text(content, encoding=encoding)
 
@@ -106,7 +109,7 @@ def test_extract_csv_invalid_file(tmp_path, content, encoding, expected_error):
         _extract_csv(csv_file)
 
 
-def test_extract_csv_extra_columns(tmp_path):
+def test_extract_csv_extra_columns(tmp_path: Path) -> None:
     csv_file = tmp_path / "watchlist.csv"
     csv_file.write_text(EXTRA_COLUMNS_CSV, encoding="utf-8")
     scores = ["87", "80", "82", "75"]
@@ -150,7 +153,9 @@ def test_extract_csv_extra_columns(tmp_path):
         ),
     ],
 )
-def test_get_csv_files(tmp_path, files_to_create, expected_files):
+def test_get_csv_files(
+    tmp_path: Path, files_to_create: Sequence[str], expected_files: Sequence[str]
+) -> None:
     for file_name in files_to_create:
         (tmp_path / file_name).touch()
 
@@ -159,7 +164,7 @@ def test_get_csv_files(tmp_path, files_to_create, expected_files):
     assert sorted(path.name for path in csv_files) == sorted(expected_files)
 
 
-def test_get_csv_files_csv_wrong_path(tmp_path):
+def test_get_csv_files_csv_wrong_path(tmp_path: Path) -> None:
     input_path = tmp_path / "input"
     csv_file = tmp_path / "watchlist.csv"
     input_path.mkdir()
@@ -187,14 +192,16 @@ def test_get_csv_files_csv_wrong_path(tmp_path):
         ),
     ],
 )
-def test_get_single_csv_invalid(csv_names, expected_error, expected_exception):
+def test_get_single_csv_invalid(
+    csv_names: Sequence[str], expected_error: str, expected_exception: type[Exception]
+) -> None:
     csv_files = [Path(name) for name in csv_names]
 
     with pytest.raises(expected_exception, match=expected_error):
         _get_single_csv(Path("input"), csv_files)
 
 
-def test_get_single_csv_single_csv():
+def test_get_single_csv_single_csv() -> None:
     csv_file = Path("watchlist.csv")
 
     result = _get_single_csv(Path("input"), [csv_file])
@@ -202,7 +209,7 @@ def test_get_single_csv_single_csv():
     assert result == csv_file
 
 
-def test_define_processed_name_valid(monkeypatch):
+def test_define_processed_name_valid(monkeypatch: pytest.MonkeyPatch) -> None:
     processed_dir = Path("processed")
     csv_file = Path("watchlist.csv")
     monkeypatch.setattr(extract, "PROCESSED_DIR", processed_dir)
@@ -232,7 +239,9 @@ def test_define_processed_name_valid(monkeypatch):
         ),
     ],
 )
-def test_move_to_processed_valid(tmp_path, keep_original, original_should_exist):
+def test_move_to_processed_valid(
+    tmp_path: Path, keep_original: bool, original_should_exist: bool
+) -> None:
     input_dir = tmp_path / "input"
     processed_dir = tmp_path / "processed"
     input_dir.mkdir()
@@ -261,7 +270,7 @@ def test_move_to_processed_valid(tmp_path, keep_original, original_should_exist)
         ),
     ],
 )
-def test_move_to_processed_invalid(tmp_path, keep_original):
+def test_move_to_processed_invalid(tmp_path: Path, keep_original: bool) -> None:
     input_dir = tmp_path / "input"
     processed_dir = tmp_path / "processed"
     input_dir.mkdir()
@@ -274,7 +283,7 @@ def test_move_to_processed_invalid(tmp_path, keep_original):
     assert csv_file.exists()
 
 
-def test_extract_valid(tmp_path, monkeypatch):
+def test_extract_valid(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     csv_file = tmp_path / "watchlist.csv"
     csv_file.write_text(VALID_CSV, encoding="utf-8")
     monkeypatch.setattr(extract, "INPUT_DIR", tmp_path)
@@ -287,7 +296,7 @@ def test_extract_valid(tmp_path, monkeypatch):
 
 # Los casos de error ya se prueban en _get_single_csv y _extract_csv.
 # Aquí solo se comprueba que los errores se propagan hasta extract().
-def test_extract_invalid(tmp_path, monkeypatch):
+def test_extract_invalid(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(extract, "INPUT_DIR", tmp_path)
 
     with pytest.raises(FileNotFoundError, match="ningún CSV"):
