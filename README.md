@@ -28,13 +28,14 @@ data/processed/watchlist_<timestamp>.csv   (only after a successful load)
 - psycopg 3
 - pytest, testcontainers (integration tests)
 - Ruff (linting and formatting)
+- mypy (static type checking, strict mode)
 - pre-commit (Git hooks)
 - GitHub Actions (CI)
 
 ## Project structure
 
 ```
-├── .github/workflows/  # CI: Ruff and pytest on every pull request
+├── .github/workflows/  # CI: Ruff, mypy and pytest on every pull request
 ├── data/
 │   ├── input/          # place watchlist.csv here (git-ignored)
 │   └── processed/      # loaded CSVs, renamed with a UTC timestamp (git-ignored)
@@ -47,7 +48,7 @@ data/processed/watchlist_<timestamp>.csv   (only after a successful load)
 ├── .env.example        # template for your .env
 ├── .pre-commit-config.yaml
 ├── compose.yaml
-├── pyproject.toml      # pytest configuration
+├── pyproject.toml      # pytest and mypy configuration
 ├── requirements.txt
 └── requirements-dev.txt
 ```
@@ -115,7 +116,8 @@ pytest
 ## Code quality
 
 - **pre-commit** runs before every commit: Ruff (lint and format), trailing whitespace, final newlines, YAML syntax and large files.
-- **GitHub Actions** runs `ruff check`, `ruff format --check` and `pytest` on every pull request and on every push to `main`.
+- **mypy** checks types in strict mode across `src/` and `tests/`. Run it with `mypy`.
+- **GitHub Actions** runs `ruff check`, `ruff format --check`, `mypy` and `pytest` on every pull request and on every push to `main`.
 
 ## Design decisions
 
