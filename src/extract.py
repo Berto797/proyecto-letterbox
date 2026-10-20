@@ -1,6 +1,6 @@
 import csv
 import shutil
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -18,7 +18,7 @@ def _get_csv_files(input_path: Path) -> list[Path]:
     return csv_files
 
 
-def _get_single_csv(input_path: Path, csv_files: list[Path]) -> Path:
+def _get_single_csv(input_path: Path, csv_files: Sequence[Path]) -> Path:
     """Comprueba que el número de CSV sea 1 y, si es así, te devuelve la ruta del archivo CSV"""
     if len(csv_files) == 0:
         raise FileNotFoundError(f"No se encontró ningún CSV en la ruta: {input_path}")
@@ -56,7 +56,7 @@ def _validate_headers(csv_file: Path, fieldnames: Sequence[str] | None) -> None:
         )
 
 
-def _validate_has_films(csv_file: Path, film_list: list[dict[str, str]]) -> None:
+def _validate_has_films(csv_file: Path, film_list: Sequence[Mapping[str, str]]) -> None:
     """Comprueba que el CSV tiene películas"""
     if len(film_list) == 0:
         raise ValueError(

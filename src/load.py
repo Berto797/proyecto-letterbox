@@ -1,4 +1,5 @@
 import os
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 import psycopg
@@ -47,7 +48,7 @@ def _open_connection() -> psycopg.Connection[TupleRow]:
 
 
 def _build_row(
-    csv_processed_path: Path, film: dict[str, str]
+    csv_processed_path: Path, film: Mapping[str, str]
 ) -> dict[str, str | Jsonb]:
     """Construye la fila de raw_watchlist de una película, con extra_fields y source_file"""
     row: dict[str, str | Jsonb] = {
@@ -59,7 +60,7 @@ def _build_row(
     return row
 
 
-def load_raw(csv_processed_path: Path, film_list: list[dict[str, str]]) -> None:
+def load_raw(csv_processed_path: Path, film_list: Sequence[Mapping[str, str]]) -> None:
     """Inserta las películas extraídas del CSV en la tabla raw_watchlist.
 
     Las columnas obligatorias del CSV se guardan en sus columnas propias,
