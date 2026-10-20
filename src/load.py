@@ -1,7 +1,9 @@
 import os
+from pathlib import Path
 
 import psycopg
 from dotenv import load_dotenv
+from psycopg.rows import TupleRow
 from psycopg.types.json import Jsonb
 
 load_dotenv()
@@ -33,7 +35,8 @@ INSERT_RAW_WATCHLIST = """
 """
 
 
-def _open_connection():
+def _open_connection() -> psycopg.Connection[TupleRow]:
+    """Abre una conexión con PostgreSQL usando las variables de entorno POSTGRES_*"""
     return psycopg.connect(
         host=os.environ["POSTGRES_HOST"],
         port=os.environ["POSTGRES_PORT"],
@@ -43,15 +46,20 @@ def _open_connection():
     )
 
 
-def _build_row(csv_processed_path, film):
-    row = {new: film[old] for old, new in MAPPING_HEADERS.items()}
+def _build_row(
+    csv_processed_path: Path, film: dict[str, str]
+) -> dict[str, str | Jsonb]:
+    """Construye la fila de raw_watchlist de una película, con extra_fields y source_file"""
+    row: dict[str, str | Jsonb] = {
+        new: film[old] for old, new in MAPPING_HEADERS.items()
+    }
     extras = {key: value for key, value in film.items() if key not in MAPPING_HEADERS}
     row["extra_fields"] = Jsonb(extras)
     row["source_file"] = csv_processed_path.name
     return row
 
 
-def load_raw(csv_processed_path, film_list):
+def load_raw(csv_processed_path: Path, film_list: list[dict[str, str]]) -> None:
     """Inserta las películas extraídas del CSV en la tabla raw_watchlist.
 
     Las columnas obligatorias del CSV se guardan en sus columnas propias,
