@@ -1,7 +1,10 @@
+from collections.abc import Mapping
 from pathlib import Path
+from typing import Any
 
 import psycopg
 import pytest
+from psycopg.types.json import Jsonb
 
 from load import _build_row, _open_connection, load_raw
 
@@ -17,6 +20,9 @@ SECOND_FILM = {
     "Year": "2019",
     "Letterboxd URI": "https://boxd.it/jkPq",
 }
+# Fila con más valores que encabezados: csv.DictReader guarda los sobrantes
+# con la clave None y como lista, así que no encaja en Mapping[str, str].
+FILM_WITH_UNNAMED_VALUES: dict[Any, Any] = {**FILM, None: ["valor1", "valor2"]}
 CSV_PROCESSED_PATH = Path("processed/watchlist_20260101_00_00_00.csv")
 EXPECTED_ROW = {
     "watchlisted_at": "2026-01-01",
@@ -46,21 +52,22 @@ EXPECTED_ROW = {
             id="several_extra_columns",
         ),
         pytest.param(
-            {**FILM, None: ["valor1", "valor2"]},
+            FILM_WITH_UNNAMED_VALUES,
             {None: ["valor1", "valor2"]},
             id="extra_values_without_header",
         ),
     ],
 )
-def test_build_row(film, expected_extras):
+def test_build_row(film: Mapping[str, str], expected_extras: Mapping[Any, Any]) -> None:
     row = _build_row(CSV_PROCESSED_PATH, film)
 
     extra_fields = row.pop("extra_fields")
+    assert isinstance(extra_fields, Jsonb)
     assert extra_fields.obj == expected_extras
     assert row == EXPECTED_ROW
 
 
-def test_load_raw_valid(clean_db):
+def test_load_raw_valid(clean_db: None) -> None:
     film_list = [FILM, SECOND_FILM]
 
     load_raw(CSV_PROCESSED_PATH, film_list)
@@ -79,7 +86,7 @@ def test_load_raw_valid(clean_db):
     ]
 
 
-def test_load_raw_extra_fields(clean_db):
+def test_load_raw_extra_fields(clean_db: None) -> None:
     film_list = [
         {
             **FILM,
@@ -104,7 +111,7 @@ def test_load_raw_extra_fields(clean_db):
     ]
 
 
-def test_load_raw_automatic_columns(clean_db):
+def test_load_raw_automatic_columns(clean_db: None) -> None:
     film_list = [FILM, SECOND_FILM]
 
     load_raw(CSV_PROCESSED_PATH, film_list)
@@ -126,7 +133,7 @@ def test_load_raw_automatic_columns(clean_db):
     assert len(set(loaded_ats)) == 1
 
 
-def test_load_raw_all_or_nothing(clean_db):
+def test_load_raw_all_or_nothing(clean_db: None) -> None:
     film_list = [
         SECOND_FILM,
         {
@@ -139,15 +146,17 @@ def test_load_raw_all_or_nothing(clean_db):
         load_raw(CSV_PROCESSED_PATH, film_list)
 
     with _open_connection() as conn:
-        count = conn.execute(
+        row = conn.execute(
             """
             SELECT count(*) FROM raw_watchlist
             """
-        ).fetchone()[0]
+        ).fetchone()
+        assert row is not None
+        count = row[0]
     assert count == 0
 
 
-def test_load_raw_connection_error(monkeypatch):
+def test_load_raw_connection_error(monkeypatch: pytest.MonkeyPatch) -> None:
     film_list = [FILM, SECOND_FILM]
     monkeypatch.setenv("POSTGRES_USER", "test_user")
     monkeypatch.setenv("POSTGRES_PASSWORD", "1234")
@@ -159,7 +168,7 @@ def test_load_raw_connection_error(monkeypatch):
         load_raw(CSV_PROCESSED_PATH, film_list)
 
 
-def test_load_raw_missing_env_variable(monkeypatch):
+def test_load_raw_missing_env_variable(monkeypatch: pytest.MonkeyPatch) -> None:
     film_list = [FILM, SECOND_FILM]
     monkeypatch.setenv("POSTGRES_USER", "test_user")
     monkeypatch.setenv("POSTGRES_PASSWORD", "1234")
