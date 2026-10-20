@@ -1,3 +1,7 @@
+from collections.abc import Mapping, Sequence
+from pathlib import Path
+from typing import NoReturn
+
 import psycopg
 import pytest
 
@@ -30,7 +34,13 @@ VALID_CSV = """Date,Name,Year,Letterboxd URI
         ),
     ],
 )
-def test_main_valid(tmp_path, monkeypatch, capsys, args, original_should_exist):
+def test_main_valid(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    args: Sequence[str],
+    original_should_exist: bool,
+) -> None:
     input_dir = tmp_path / "input"
     processed_dir = tmp_path / "processed"
     input_dir.mkdir()
@@ -40,7 +50,9 @@ def test_main_valid(tmp_path, monkeypatch, capsys, args, original_should_exist):
     monkeypatch.setattr(extract, "INPUT_DIR", input_dir)
     monkeypatch.setattr(extract, "PROCESSED_DIR", processed_dir)
 
-    def fake_load_raw(csv_processed_path, film_list):
+    def fake_load_raw(
+        csv_processed_path: Path, film_list: Sequence[Mapping[str, str]]
+    ) -> None:
         pass
 
     monkeypatch.setattr(main, "load_raw", fake_load_raw)
@@ -56,7 +68,9 @@ def test_main_valid(tmp_path, monkeypatch, capsys, args, original_should_exist):
     assert captured.err == ""
 
 
-def test_main_invalid(tmp_path, monkeypatch, capsys):
+def test_main_invalid(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     input_dir = tmp_path / "input"
     processed_dir = tmp_path / "processed"
     input_dir.mkdir()
@@ -66,7 +80,9 @@ def test_main_invalid(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(extract, "INPUT_DIR", input_dir)
     monkeypatch.setattr(extract, "PROCESSED_DIR", processed_dir)
 
-    def fake_load_raw(csv_processed_path, film_list):
+    def fake_load_raw(
+        csv_processed_path: Path, film_list: Sequence[Mapping[str, str]]
+    ) -> NoReturn:
         raise psycopg.OperationalError("connection failed")
 
     monkeypatch.setattr(main, "load_raw", fake_load_raw)
