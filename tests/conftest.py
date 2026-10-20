@@ -1,3 +1,4 @@
+from collections.abc import Iterator, Mapping
 from pathlib import Path
 
 import psycopg
@@ -10,7 +11,7 @@ SQL_FILE = Path(__file__).parent.parent / "sql" / "01_create_raw_watchlist.sql"
 
 
 @pytest.fixture(scope="session")
-def postgres_connection_info():
+def postgres_connection_info() -> Iterator[dict[str, str]]:
     with PostgresContainer("postgres:17") as postgres:
         host = postgres.get_container_host_ip()
         port = postgres.get_exposed_port(5432)
@@ -35,7 +36,9 @@ def postgres_connection_info():
 
 
 @pytest.fixture()
-def clean_db(postgres_connection_info, monkeypatch):
+def clean_db(
+    postgres_connection_info: Mapping[str, str], monkeypatch: pytest.MonkeyPatch
+) -> Iterator[None]:
     for key, value in postgres_connection_info.items():
         monkeypatch.setenv(key, value)
 
