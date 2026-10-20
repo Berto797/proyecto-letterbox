@@ -28,10 +28,13 @@ data/processed/watchlist_<timestamp>.csv   (only after a successful load)
 - psycopg 3
 - pytest, testcontainers (integration tests)
 - Ruff (linting and formatting)
+- pre-commit (Git hooks)
+- GitHub Actions (CI)
 
 ## Project structure
 
 ```
+├── .github/workflows/  # CI: Ruff and pytest on every pull request
 ├── data/
 │   ├── input/          # place watchlist.csv here (git-ignored)
 │   └── processed/      # loaded CSVs, renamed with a UTC timestamp (git-ignored)
@@ -42,6 +45,7 @@ data/processed/watchlist_<timestamp>.csv   (only after a successful load)
 │   └── main.py         # entry point: runs the full pipeline
 ├── tests/
 ├── .env.example        # template for your .env
+├── .pre-commit-config.yaml
 ├── compose.yaml
 ├── pyproject.toml      # pytest configuration
 ├── requirements.txt
@@ -60,7 +64,10 @@ data/processed/watchlist_<timestamp>.csv   (only after a successful load)
    python -m venv .venv
    source .venv/bin/activate
    pip install -r requirements-dev.txt
+   pre-commit install
    ```
+
+   `pre-commit install` sets up Git hooks that run Ruff and basic file checks before every commit.
 
 2. Create your `.env` from the template and fill in the values:
 
@@ -105,6 +112,11 @@ pytest
 
 > Docker must be running for the integration tests. Your `letterbox-db` container does not need to be up: testcontainers starts its own.
 
+## Code quality
+
+- **pre-commit** runs before every commit: Ruff (lint and format), trailing whitespace, final newlines, YAML syntax and large files.
+- **GitHub Actions** runs `ruff check`, `ruff format --check` and `pytest` on every pull request and on every push to `main`.
+
 ## Design decisions
 
 - **Raw layer stores data as received.** All CSV columns are stored as `TEXT`, with no type conversion or cleaning. Rows with bad values are kept rather than rejected; cleaning belongs to later layers.
@@ -122,6 +134,7 @@ pytest
 - [x] Unit tests
 - [x] Integration tests for the load with testcontainers
 - [x] `main.py` orchestrating extract → load → move to processed
+- [x] CI with GitHub Actions and pre-commit hooks
 - [ ] Enrichment with TMDB data
 
 ## Disclaimer
