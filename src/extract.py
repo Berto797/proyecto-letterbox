@@ -13,7 +13,7 @@ TIMESTAMP_FORMAT = "%Y%m%d_%H_%M_%S"
 
 
 def _get_csv_files(input_path: Path) -> list[Path]:
-    """Se obtiene lista de .csv en input_path"""
+    """Obtiene la lista de archivos .csv de input_path"""
     csv_files = list(input_path.glob("*.csv"))
     return csv_files
 
