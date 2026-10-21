@@ -3,13 +3,16 @@ from typing import Any
 
 import pytest
 
-from matching import filter_candidates, normalize_title
+from matching import decide, filter_candidates, normalize_title
 
 RAY = {"id": 1, "title": "Ray", "original_title": "Ray"}
 OTHER_RAY = {"id": 2, "title": "Ray", "original_title": "Ray"}
 DISTRICT_B13 = {"id": 3, "title": "District B13", "original_title": "Banlieue 13"}
 PARASITE = {"id": 4, "title": "Parasite", "original_title": "기생충"}
 SIRAT = {"id": 5, "title": "Sirāt", "original_title": "Sirāt"}
+FEW_VOTES = {"id": 10, "vote_count": 50}
+MANY_VOTES = {"id": 11, "vote_count": 900}
+TIED_MANY_VOTES = {"id": 12, "vote_count": 900}
 
 
 @pytest.mark.parametrize(
@@ -53,3 +56,25 @@ def test_filter_candidates(
     result = filter_candidates(name, results)
 
     assert result == expected_candidates
+
+
+@pytest.mark.parametrize(
+    "candidates, expected_decision",
+    [
+        pytest.param([], (None, "not_found"), id="no_candidates"),
+        pytest.param([FEW_VOTES], (10, "matched"), id="single_candidate"),
+        pytest.param(
+            [FEW_VOTES, MANY_VOTES], (11, "ambiguous"), id="several_candidates"
+        ),
+        pytest.param(
+            [FEW_VOTES, MANY_VOTES, TIED_MANY_VOTES], (11, "ambiguous"), id="tie"
+        ),
+    ],
+)
+def test_decide(
+    candidates: Sequence[Mapping[str, Any]],
+    expected_decision: tuple[int | None, str],
+) -> None:
+    result = decide(candidates)
+
+    assert result == expected_decision

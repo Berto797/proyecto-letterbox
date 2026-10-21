@@ -28,3 +28,13 @@ def filter_candidates(
         )
     ]
     return candidates
+
+
+def decide(candidates: Sequence[Mapping[str, Any]]) -> tuple[int | None, str]:
+    """Elige el tmdb_id y el match_status según los candidatos filtrados"""
+    if not candidates:
+        return (None, "not_found")
+
+    best = max(candidates, key=lambda candidate: candidate["vote_count"])
+    status = "matched" if len(candidates) == 1 else "ambiguous"
+    return (best["id"], status)
