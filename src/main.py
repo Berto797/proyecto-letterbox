@@ -1,5 +1,6 @@
 import argparse
 import sys
+from collections.abc import Sequence
 
 import psycopg
 
@@ -7,7 +8,7 @@ from extract import define_processed_name, extract, move_to_processed
 from load import load_raw
 
 
-def main(argv=None):
+def main(argv: Sequence[str] | None = None) -> None:
     """Ejecuta el pipeline completo de la watchlist.
 
     Extrae las películas del CSV de la carpeta input, las carga en la
@@ -16,8 +17,8 @@ def main(argv=None):
     copia en lugar de moverlo y conserva el original en input.
 
     Args:
-        argv: Lista de argumentos de la línea de comandos, sin el
-            nombre del programa. Si es None, se usan los de sys.argv.
+        argv: Argumentos de la línea de comandos, sin el nombre del
+            programa. Si es None, se usan los de sys.argv.
 
     Raises:
         SystemExit: Con código 1 si falla algún paso del pipeline (CSV

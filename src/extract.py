@@ -1,5 +1,6 @@
 import csv
 import shutil
+from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -11,13 +12,13 @@ REQUIRED_HEADERS = {"Date", "Name", "Year", "Letterboxd URI"}
 TIMESTAMP_FORMAT = "%Y%m%d_%H_%M_%S"
 
 
-def _get_csv_files(input_path):
-    """Se obtiene lista de .csv en input_path"""
+def _get_csv_files(input_path: Path) -> list[Path]:
+    """Obtiene la lista de archivos .csv de input_path"""
     csv_files = list(input_path.glob("*.csv"))
     return csv_files
 
 
-def _get_single_csv(input_path, csv_files):
+def _get_single_csv(input_path: Path, csv_files: Sequence[Path]) -> Path:
     """Comprueba que el número de CSV sea 1 y, si es así, te devuelve la ruta del archivo CSV"""
     if len(csv_files) == 0:
         raise FileNotFoundError(f"No se encontró ningún CSV en la ruta: {input_path}")
@@ -29,7 +30,7 @@ def _get_single_csv(input_path, csv_files):
     return csv_files[0]
 
 
-def _extract_csv(csv_file):
+def _extract_csv(csv_file: Path) -> list[dict[str, str]]:
     """Extrae la información del .csv"""
     try:
         with open(csv_file, encoding="utf-8-sig", newline="") as f:
@@ -44,7 +45,7 @@ def _extract_csv(csv_file):
         ) from e
 
 
-def _validate_headers(csv_file, fieldnames):
+def _validate_headers(csv_file: Path, fieldnames: Sequence[str] | None) -> None:
     """Valida que el archivo no esté vacío y que los headers son los esperados"""
     if fieldnames is None:
         raise ValueError(f"Archivo {csv_file.name} vacío")
@@ -55,7 +56,7 @@ def _validate_headers(csv_file, fieldnames):
         )
 
 
-def _validate_has_films(csv_file, film_list):
+def _validate_has_films(csv_file: Path, film_list: Sequence[Mapping[str, str]]) -> None:
     """Comprueba que el CSV tiene películas"""
     if len(film_list) == 0:
         raise ValueError(
@@ -63,7 +64,7 @@ def _validate_has_films(csv_file, film_list):
         )
 
 
-def define_processed_name(csv_file):
+def define_processed_name(csv_file: Path) -> Path:
     """Construye la ruta de destino del CSV en la carpeta processed.
 
     Al nombre del archivo se le añade un sufijo con la fecha y hora
@@ -85,7 +86,9 @@ def define_processed_name(csv_file):
     return csv_processed_path
 
 
-def move_to_processed(csv_file, csv_processed_path, keep_original=False):
+def move_to_processed(
+    csv_file: Path, csv_processed_path: Path, keep_original: bool = False
+) -> None:
     """Mueve o copia el CSV a su ruta de destino en la carpeta processed.
 
     Args:
@@ -105,7 +108,7 @@ def move_to_processed(csv_file, csv_processed_path, keep_original=False):
         shutil.move(csv_file, csv_processed_path)
 
 
-def extract():
+def extract() -> tuple[Path, list[dict[str, str]]]:
     """Localiza el CSV de la watchlist en INPUT_DIR, lo valida y lee sus filas.
 
     Returns:
