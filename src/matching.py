@@ -1,5 +1,6 @@
 import unicodedata
 from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
 
@@ -11,6 +12,14 @@ class MatchStatus(StrEnum):
     AMBIGUOUS = "ambiguous"
     NOT_FOUND = "not_found"
     MANUAL = "manual"
+
+
+@dataclass(frozen=True)
+class MatchResult:
+    """Resultado de emparejar una película con TMDB: su tmdb_id y match_status"""
+
+    tmdb_id: int | None
+    status: MatchStatus
 
 
 def normalize_title(title: str) -> str:
@@ -40,14 +49,14 @@ def filter_candidates(
     return candidates
 
 
-def decide(candidates: Sequence[Mapping[str, Any]]) -> tuple[int | None, MatchStatus]:
+def decide(candidates: Sequence[Mapping[str, Any]]) -> MatchResult:
     """Elige el tmdb_id y el match_status según los candidatos filtrados"""
     if not candidates:
-        return (None, MatchStatus.NOT_FOUND)
+        return MatchResult(tmdb_id=None, status=MatchStatus.NOT_FOUND)
 
     best = max(candidates, key=lambda candidate: candidate["vote_count"])
     status = MatchStatus.MATCHED if len(candidates) == 1 else MatchStatus.AMBIGUOUS
-    return (best["id"], status)
+    return MatchResult(tmdb_id=best["id"], status=status)
 
 
 def _filter_by_year(
@@ -66,7 +75,7 @@ def _filter_by_year(
 
 def match_film(
     name: str, year: str, search: Callable[[str, str | None], list[dict[str, Any]]]
-) -> tuple[int | None, MatchStatus]:
+) -> MatchResult:
     """Busca una película en TMDB y decide su tmdb_id y match_status"""
     search_year = year or None
     results = search(name, search_year)

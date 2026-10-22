@@ -4,6 +4,7 @@ from typing import Any
 import pytest
 
 from matching import (
+    MatchResult,
     MatchStatus,
     _filter_by_year,
     decide,
@@ -101,29 +102,36 @@ def test_filter_candidates(
 
 
 @pytest.mark.parametrize(
-    "candidates, expected_decision",
+    "candidates, expected_result",
     [
-        pytest.param([], (None, MatchStatus.NOT_FOUND), id="no_candidates"),
-        pytest.param([FEW_VOTES], (10, MatchStatus.MATCHED), id="single_candidate"),
+        pytest.param(
+            [],
+            MatchResult(tmdb_id=None, status=MatchStatus.NOT_FOUND),
+            id="no_candidates",
+        ),
+        pytest.param(
+            [FEW_VOTES],
+            MatchResult(tmdb_id=10, status=MatchStatus.MATCHED),
+            id="single_candidate",
+        ),
         pytest.param(
             [FEW_VOTES, MANY_VOTES],
-            (11, MatchStatus.AMBIGUOUS),
+            MatchResult(tmdb_id=11, status=MatchStatus.AMBIGUOUS),
             id="several_candidates",
         ),
         pytest.param(
             [FEW_VOTES, MANY_VOTES, TIED_MANY_VOTES],
-            (11, MatchStatus.AMBIGUOUS),
+            MatchResult(tmdb_id=11, status=MatchStatus.AMBIGUOUS),
             id="tie",
         ),
     ],
 )
 def test_decide(
-    candidates: Sequence[Mapping[str, Any]],
-    expected_decision: tuple[int | None, MatchStatus],
+    candidates: Sequence[Mapping[str, Any]], expected_result: MatchResult
 ) -> None:
     result = decide(candidates)
 
-    assert result == expected_decision
+    assert result == expected_result
 
 
 @pytest.mark.parametrize(
@@ -148,54 +156,54 @@ def test_filter_by_year(release_date: str | None, expected_kept: bool) -> None:
 
 
 @pytest.mark.parametrize(
-    "year, responses, expected_decision, expected_calls",
+    "year, responses, expected_result, expected_calls",
     [
         pytest.param(
             "2017",
             {"2017": [FILM_2017]},
-            (21, MatchStatus.MATCHED),
+            MatchResult(tmdb_id=21, status=MatchStatus.MATCHED),
             [("Film", "2017")],
             id="found_with_year",
         ),
         pytest.param(
             "2017",
             {"2017": [], None: [FILM_2016]},
-            (20, MatchStatus.MATCHED),
+            MatchResult(tmdb_id=20, status=MatchStatus.MATCHED),
             [("Film", "2017"), ("Film", None)],
             id="retry_finds_nearby_year",
         ),
         pytest.param(
             "2017",
             {"2017": [], None: [FILM_1985]},
-            (None, MatchStatus.NOT_FOUND),
+            MatchResult(tmdb_id=None, status=MatchStatus.NOT_FOUND),
             [("Film", "2017"), ("Film", None)],
             id="retry_rejects_far_year",
         ),
         pytest.param(
             "2017",
             {"2017": [OTHER_FILM_2017], None: [OTHER_FILM_2017, FILM_2016]},
-            (20, MatchStatus.MATCHED),
+            MatchResult(tmdb_id=20, status=MatchStatus.MATCHED),
             [("Film", "2017"), ("Film", None)],
             id="retry_after_title_filter",
         ),
         pytest.param(
             "2017",
             {"2017": [], None: [FILM_2016, FILM_1985, FILM_2018]},
-            (22, MatchStatus.AMBIGUOUS),
+            MatchResult(tmdb_id=22, status=MatchStatus.AMBIGUOUS),
             [("Film", "2017"), ("Film", None)],
             id="retry_several_nearby",
         ),
         pytest.param(
             "",
             {None: [FILM_2016, FILM_2018]},
-            (22, MatchStatus.AMBIGUOUS),
+            MatchResult(tmdb_id=22, status=MatchStatus.AMBIGUOUS),
             [("Film", None)],
             id="no_year_ambiguous",
         ),
         pytest.param(
             "",
             {None: []},
-            (None, MatchStatus.NOT_FOUND),
+            MatchResult(tmdb_id=None, status=MatchStatus.NOT_FOUND),
             [("Film", None)],
             id="no_year_not_found",
         ),
@@ -204,7 +212,7 @@ def test_filter_by_year(release_date: str | None, expected_kept: bool) -> None:
 def test_match_film(
     year: str,
     responses: Mapping[str | None, list[dict[str, Any]]],
-    expected_decision: tuple[int | None, MatchStatus],
+    expected_result: MatchResult,
     expected_calls: Sequence[tuple[str, str | None]],
 ) -> None:
     calls: list[tuple[str, str | None]] = []
@@ -215,5 +223,5 @@ def test_match_film(
 
     result = match_film("Film", year, fake_search)
 
-    assert result == expected_decision
+    assert result == expected_result
     assert calls == expected_calls
