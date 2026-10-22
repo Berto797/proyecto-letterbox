@@ -4,6 +4,7 @@ from typing import Any
 import pytest
 
 from matching import (
+    MatchStatus,
     _filter_by_year,
     decide,
     filter_candidates,
@@ -102,19 +103,23 @@ def test_filter_candidates(
 @pytest.mark.parametrize(
     "candidates, expected_decision",
     [
-        pytest.param([], (None, "not_found"), id="no_candidates"),
-        pytest.param([FEW_VOTES], (10, "matched"), id="single_candidate"),
+        pytest.param([], (None, MatchStatus.NOT_FOUND), id="no_candidates"),
+        pytest.param([FEW_VOTES], (10, MatchStatus.MATCHED), id="single_candidate"),
         pytest.param(
-            [FEW_VOTES, MANY_VOTES], (11, "ambiguous"), id="several_candidates"
+            [FEW_VOTES, MANY_VOTES],
+            (11, MatchStatus.AMBIGUOUS),
+            id="several_candidates",
         ),
         pytest.param(
-            [FEW_VOTES, MANY_VOTES, TIED_MANY_VOTES], (11, "ambiguous"), id="tie"
+            [FEW_VOTES, MANY_VOTES, TIED_MANY_VOTES],
+            (11, MatchStatus.AMBIGUOUS),
+            id="tie",
         ),
     ],
 )
 def test_decide(
     candidates: Sequence[Mapping[str, Any]],
-    expected_decision: tuple[int | None, str],
+    expected_decision: tuple[int | None, MatchStatus],
 ) -> None:
     result = decide(candidates)
 
@@ -148,49 +153,49 @@ def test_filter_by_year(release_date: str | None, expected_kept: bool) -> None:
         pytest.param(
             "2017",
             {"2017": [FILM_2017]},
-            (21, "matched"),
+            (21, MatchStatus.MATCHED),
             [("Film", "2017")],
             id="found_with_year",
         ),
         pytest.param(
             "2017",
             {"2017": [], None: [FILM_2016]},
-            (20, "matched"),
+            (20, MatchStatus.MATCHED),
             [("Film", "2017"), ("Film", None)],
             id="retry_finds_nearby_year",
         ),
         pytest.param(
             "2017",
             {"2017": [], None: [FILM_1985]},
-            (None, "not_found"),
+            (None, MatchStatus.NOT_FOUND),
             [("Film", "2017"), ("Film", None)],
             id="retry_rejects_far_year",
         ),
         pytest.param(
             "2017",
             {"2017": [OTHER_FILM_2017], None: [OTHER_FILM_2017, FILM_2016]},
-            (20, "matched"),
+            (20, MatchStatus.MATCHED),
             [("Film", "2017"), ("Film", None)],
             id="retry_after_title_filter",
         ),
         pytest.param(
             "2017",
             {"2017": [], None: [FILM_2016, FILM_1985, FILM_2018]},
-            (22, "ambiguous"),
+            (22, MatchStatus.AMBIGUOUS),
             [("Film", "2017"), ("Film", None)],
             id="retry_several_nearby",
         ),
         pytest.param(
             "",
             {None: [FILM_2016, FILM_2018]},
-            (22, "ambiguous"),
+            (22, MatchStatus.AMBIGUOUS),
             [("Film", None)],
             id="no_year_ambiguous",
         ),
         pytest.param(
             "",
             {None: []},
-            (None, "not_found"),
+            (None, MatchStatus.NOT_FOUND),
             [("Film", None)],
             id="no_year_not_found",
         ),
@@ -199,7 +204,7 @@ def test_filter_by_year(release_date: str | None, expected_kept: bool) -> None:
 def test_match_film(
     year: str,
     responses: Mapping[str | None, list[dict[str, Any]]],
-    expected_decision: tuple[int | None, str],
+    expected_decision: tuple[int | None, MatchStatus],
     expected_calls: Sequence[tuple[str, str | None]],
 ) -> None:
     calls: list[tuple[str, str | None]] = []

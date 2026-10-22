@@ -1,6 +1,16 @@
 import unicodedata
 from collections.abc import Callable, Mapping, Sequence
+from enum import StrEnum
 from typing import Any
+
+
+class MatchStatus(StrEnum):
+    """Estados posibles de un emparejamiento en tmdb_matches"""
+
+    MATCHED = "matched"
+    AMBIGUOUS = "ambiguous"
+    NOT_FOUND = "not_found"
+    MANUAL = "manual"
 
 
 def normalize_title(title: str) -> str:
@@ -30,13 +40,13 @@ def filter_candidates(
     return candidates
 
 
-def decide(candidates: Sequence[Mapping[str, Any]]) -> tuple[int | None, str]:
+def decide(candidates: Sequence[Mapping[str, Any]]) -> tuple[int | None, MatchStatus]:
     """Elige el tmdb_id y el match_status según los candidatos filtrados"""
     if not candidates:
-        return (None, "not_found")
+        return (None, MatchStatus.NOT_FOUND)
 
     best = max(candidates, key=lambda candidate: candidate["vote_count"])
-    status = "matched" if len(candidates) == 1 else "ambiguous"
+    status = MatchStatus.MATCHED if len(candidates) == 1 else MatchStatus.AMBIGUOUS
     return (best["id"], status)
 
 
@@ -56,7 +66,7 @@ def _filter_by_year(
 
 def match_film(
     name: str, year: str, search: Callable[[str, str | None], list[dict[str, Any]]]
-) -> tuple[int | None, str]:
+) -> tuple[int | None, MatchStatus]:
     """Busca una película en TMDB y decide su tmdb_id y match_status"""
     search_year = year or None
     results = search(name, search_year)
