@@ -1,5 +1,5 @@
 import unicodedata
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
 
@@ -38,3 +38,31 @@ def decide(candidates: Sequence[Mapping[str, Any]]) -> tuple[int | None, str]:
     best = max(candidates, key=lambda candidate: candidate["vote_count"])
     status = "matched" if len(candidates) == 1 else "ambiguous"
     return (best["id"], status)
+
+
+def _filter_by_year(
+    candidates: Sequence[Mapping[str, Any]], year: int
+) -> list[dict[str, Any]]:
+    """Obtiene los candidatos cuyo año de estreno está a ±1 de year"""
+    return [
+        dict(candidate)
+        for candidate in candidates
+        if (
+            candidate.get("release_date")
+            and abs(int(candidate["release_date"][:4]) - year) <= 1
+        )
+    ]
+
+
+def match_film(
+    name: str, year: str, search: Callable[[str, str | None], list[dict[str, Any]]]
+) -> tuple[int | None, str]:
+    """Busca una película en TMDB y decide su tmdb_id y match_status"""
+    search_year = year or None
+    results = search(name, search_year)
+    candidates = filter_candidates(name, results)
+    if not candidates and search_year is not None:
+        without_year_results = search(name, None)
+        new_candidates = filter_candidates(name, without_year_results)
+        candidates = _filter_by_year(new_candidates, int(search_year))
+    return decide(candidates)
