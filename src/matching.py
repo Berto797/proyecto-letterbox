@@ -21,6 +21,12 @@ class MatchResult:
     tmdb_id: int | None
     status: MatchStatus
 
+    def __post_init__(self) -> None:
+        if (self.tmdb_id is None) != (self.status == MatchStatus.NOT_FOUND):
+            raise ValueError(
+                f"tmdb_id debe ser None si y solo si status es not_found (tmdb_id={self.tmdb_id}, status={self.status})"
+            )
+
 
 def normalize_title(title: str) -> str:
     """Normaliza un título para compararlo: sin acentos y en minúsculas"""

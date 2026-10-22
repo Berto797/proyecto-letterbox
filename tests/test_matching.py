@@ -59,6 +59,40 @@ OTHER_FILM_2017 = {
 
 
 @pytest.mark.parametrize(
+    "tmdb_id, status",
+    [
+        pytest.param(None, MatchStatus.MATCHED, id="matched_without_id"),
+        pytest.param(None, MatchStatus.AMBIGUOUS, id="ambiguous_without_id"),
+        pytest.param(None, MatchStatus.MANUAL, id="manual_without_id"),
+        pytest.param(1, MatchStatus.NOT_FOUND, id="not_found_with_id"),
+    ],
+)
+def test_match_result_rejects_inconsistent_values(
+    tmdb_id: int | None, status: MatchStatus
+) -> None:
+    with pytest.raises(ValueError, match="si y solo si"):
+        MatchResult(tmdb_id=tmdb_id, status=status)
+
+
+@pytest.mark.parametrize(
+    "tmdb_id, status",
+    [
+        pytest.param(1, MatchStatus.MATCHED, id="matched_with_id"),
+        pytest.param(1, MatchStatus.AMBIGUOUS, id="ambiguous_with_id"),
+        pytest.param(1, MatchStatus.MANUAL, id="manual_with_id"),
+        pytest.param(None, MatchStatus.NOT_FOUND, id="not_found_without_id"),
+    ],
+)
+def test_match_result_accepts_consistent_values(
+    tmdb_id: int | None, status: MatchStatus
+) -> None:
+    result = MatchResult(tmdb_id=tmdb_id, status=status)
+
+    assert result.tmdb_id == tmdb_id
+    assert result.status == status
+
+
+@pytest.mark.parametrize(
     "title, expected_title",
     [
         pytest.param("parasite", "parasite", id="unchanged"),
