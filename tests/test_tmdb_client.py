@@ -33,6 +33,18 @@ class FakeSession:
         return self.response
 
 
+@pytest.fixture
+def session() -> FakeSession:
+    return FakeSession(FakeResponse({"results": []}))
+
+
+@pytest.fixture
+def client(session: FakeSession, monkeypatch: pytest.MonkeyPatch) -> TMDBClient:
+    client = TMDBClient("fake-token")
+    monkeypatch.setattr(client, "session", session)
+    return client
+
+
 def test_tmdb_client_sets_auth_header() -> None:
     client = TMDBClient("fake-token")
 
@@ -55,13 +67,11 @@ def test_tmdb_client_sets_auth_header() -> None:
     ],
 )
 def test_search_movies_sends_request(
-    year: str | None, expected_params: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+    year: str | None,
+    expected_params: dict[str, Any],
+    client: TMDBClient,
+    session: FakeSession,
 ) -> None:
-    response = FakeResponse({"results": []})
-    session = FakeSession(response)
-    client = TMDBClient("fake-token")
-    monkeypatch.setattr(client, "session", session)
-
     client.search_movies("Oslo", year)
 
     assert session.calls == [
@@ -73,22 +83,20 @@ def test_search_movies_sends_request(
     ]
 
 
-def test_search_movies_returns_results(monkeypatch: pytest.MonkeyPatch) -> None:
-    response = FakeResponse({"results": [{"id": 1, "title": "Oslo"}]})
-    session = FakeSession(response)
-    client = TMDBClient("fake-token")
-    monkeypatch.setattr(client, "session", session)
+def test_search_movies_returns_results(
+    client: TMDBClient, session: FakeSession
+) -> None:
+    session.response = FakeResponse({"results": [{"id": 1, "title": "Oslo"}]})
 
     result = client.search_movies("Oslo", "2021")
 
     assert result == [{"id": 1, "title": "Oslo"}]
 
 
-def test_search_movies_raises_on_http_error(monkeypatch: pytest.MonkeyPatch) -> None:
-    response = FakeResponse({}, error=requests.HTTPError("401"))
-    session = FakeSession(response)
-    client = TMDBClient("fake-token")
-    monkeypatch.setattr(client, "session", session)
+def test_search_movies_raises_on_http_error(
+    client: TMDBClient, session: FakeSession
+) -> None:
+    session.response = FakeResponse({}, error=requests.HTTPError("401"))
 
     with pytest.raises(requests.HTTPError):
         client.search_movies("Oslo", "2021")
