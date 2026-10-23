@@ -7,7 +7,7 @@ from testcontainers.community.postgres import PostgresContainer
 
 from load import _open_connection
 
-SQL_FILE = Path(__file__).parent.parent / "sql" / "01_create_raw_watchlist.sql"
+SQL_PATH = Path(__file__).parent.parent / "sql"
 
 
 @pytest.fixture(scope="session")
@@ -25,7 +25,8 @@ def postgres_connection_info() -> Iterator[dict[str, str]]:
             user=user,
             password=password,
         ) as conn:
-            conn.execute(SQL_FILE.read_text(encoding="utf-8"))
+            for sql_file in sorted(SQL_PATH.glob("*.sql")):
+                conn.execute(sql_file.read_text(encoding="utf-8"))
         yield {
             "POSTGRES_HOST": host,
             "POSTGRES_PORT": str(port),
@@ -43,6 +44,8 @@ def clean_db(
         monkeypatch.setenv(key, value)
 
     with _open_connection() as conn:
-        conn.execute("TRUNCATE raw_watchlist RESTART IDENTITY")
+        conn.execute(
+            "TRUNCATE raw_watchlist, tmdb_matches, raw_tmdb_movies RESTART IDENTITY"
+        )
 
     yield
