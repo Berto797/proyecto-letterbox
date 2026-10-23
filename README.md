@@ -2,7 +2,7 @@
 
 A data pipeline that loads a [Letterboxd](https://letterboxd.com/) watchlist export into PostgreSQL, as the first step towards enriching it with data from [TMDB](https://www.themoviedb.org/).
 
-> **Status:** work in progress. Extraction and loading into the raw layer are working; TMDB enrichment is not implemented yet.
+> **Status:** work in progress. Extraction and loading into the raw layer are working. The TMDB client and the title-matching logic are implemented and tested, but not yet connected to the pipeline.
 
 ## How it works
 
@@ -26,6 +26,7 @@ data/processed/watchlist_<timestamp>.csv   (only after a successful load)
 - Python 3.14
 - PostgreSQL 17 (Docker Compose)
 - psycopg 3
+- requests (TMDB API)
 - pytest, testcontainers (integration tests)
 - Ruff (linting and formatting)
 - mypy (static type checking, strict mode)
@@ -43,7 +44,9 @@ data/processed/watchlist_<timestamp>.csv   (only after a successful load)
 ├── src/
 │   ├── extract.py      # CSV discovery, validation and reading
 │   ├── load.py         # loading into PostgreSQL
-│   └── main.py         # entry point: runs the full pipeline
+│   ├── main.py         # entry point: runs the full pipeline
+│   ├── matching.py     # matches each watchlist film with its TMDB id
+│   └── tmdb_client.py  # TMDB API client (movie search)
 ├── tests/
 ├── .env.example        # template for your .env
 ├── .pre-commit-config.yaml
@@ -78,6 +81,8 @@ data/processed/watchlist_<timestamp>.csv   (only after a successful load)
 
    `POSTGRES_HOST=localhost` and `POSTGRES_PORT=5432` work with the provided `compose.yaml`.
 
+   `TMDB_TOKEN` is your TMDB *API Read Access Token* (*Settings → API* on themoviedb.org). The pipeline does not use it yet.
+
 3. Start the database:
 
    ```bash
@@ -109,6 +114,7 @@ pytest
 ```
 
 - **Unit tests** cover CSV discovery, validation and reading, file handling, and the row transformation before loading. They also cover the pipeline in `main.py`, with the database load replaced by a fake: the CSV is only moved after a successful load, and failures exit with code 1.
+- **TMDB tests** never call the real API. The matching logic receives a fake search function, and the TMDB client runs against a fake HTTP session that records each request and returns prepared responses or errors.
 - **Integration tests** run `load_raw` against a real, disposable PostgreSQL 17 started with [testcontainers](https://testcontainers.com/). The schema is created from the same `sql/` scripts used by Docker Compose, so tests never touch your development database.
 
 > Docker must be running for the integration tests. Your `letterbox-db` container does not need to be up: testcontainers starts its own.
@@ -128,6 +134,7 @@ pytest
 - **Traceability.** Each row records its source file name (`watchlist_<timestamp>.csv`) and load time, so every load can be traced back to its file.
 - **UTC timestamps** everywhere.
 - **Configuration through environment variables.** No credentials or connection details in the code.
+- **Conservative TMDB matching.** A film is matched only when its title equals the TMDB `title` or `original_title` after removing accents and case. When the film has a year, the search is filtered by it; if nothing matches, it is repeated without the year and only results within ±1 year are kept. One candidate is `matched`; several are `ambiguous` (the one with most votes is kept, for review); none is `not_found`.
 
 ## Roadmap
 
@@ -138,6 +145,9 @@ pytest
 - [x] `main.py` orchestrating extract → load → move to processed
 - [x] CI with GitHub Actions and pre-commit hooks
 - [ ] Enrichment with TMDB data
+  - [x] TMDB client and title-matching logic
+  - [ ] Store the matches in PostgreSQL
+  - [ ] Download movie details from TMDB
 
 ## Disclaimer
 
