@@ -5,7 +5,7 @@ import psycopg
 import pytest
 from testcontainers.community.postgres import PostgresContainer
 
-from load import _open_connection
+from db import open_connection
 
 SQL_PATH = Path(__file__).parent.parent / "sql"
 
@@ -43,7 +43,7 @@ def clean_db(
     for key, value in postgres_connection_info.items():
         monkeypatch.setenv(key, value)
 
-    with _open_connection() as conn:
+    with open_connection() as conn:
         conn.execute(
             "TRUNCATE raw_watchlist, tmdb_matches, raw_tmdb_movies RESTART IDENTITY"
         )

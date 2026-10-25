@@ -6,7 +6,8 @@ import psycopg
 import pytest
 from psycopg.types.json import Jsonb
 
-from load import _build_row, _open_connection, load_raw
+from db import open_connection
+from load import _build_row, load_raw
 
 FILM = {
     "Date": "2026-01-01",
@@ -72,7 +73,7 @@ def test_load_raw_valid(clean_db: None) -> None:
 
     load_raw(CSV_PROCESSED_PATH, film_list)
 
-    with _open_connection() as conn:
+    with open_connection() as conn:
         rows = conn.execute(
             """
             SELECT watchlisted_at, film_name, film_year, letterboxd_uri
@@ -97,7 +98,7 @@ def test_load_raw_extra_fields(clean_db: None) -> None:
 
     load_raw(CSV_PROCESSED_PATH, film_list)
 
-    with _open_connection() as conn:
+    with open_connection() as conn:
         extra_fields = conn.execute(
             """
             SELECT extra_fields
@@ -116,7 +117,7 @@ def test_load_raw_automatic_columns(clean_db: None) -> None:
 
     load_raw(CSV_PROCESSED_PATH, film_list)
 
-    with _open_connection() as conn:
+    with open_connection() as conn:
         automatic_columns = conn.execute(
             """
             SELECT id, source_file, loaded_at
@@ -145,7 +146,7 @@ def test_load_raw_all_or_nothing(clean_db: None) -> None:
     with pytest.raises(psycopg.DataError):
         load_raw(CSV_PROCESSED_PATH, film_list)
 
-    with _open_connection() as conn:
+    with open_connection() as conn:
         row = conn.execute(
             """
             SELECT count(*) FROM raw_watchlist

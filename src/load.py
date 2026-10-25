@@ -1,13 +1,9 @@
-import os
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 
-import psycopg
-from dotenv import load_dotenv
-from psycopg.rows import TupleRow
 from psycopg.types.json import Jsonb
 
-load_dotenv()
+from db import open_connection
 
 MAPPING_HEADERS = {
     "Date": "watchlisted_at",
@@ -34,17 +30,6 @@ INSERT_RAW_WATCHLIST = """
         %(source_file)s
     )
 """
-
-
-def _open_connection() -> psycopg.Connection[TupleRow]:
-    """Abre una conexión con PostgreSQL usando las variables de entorno POSTGRES_*"""
-    return psycopg.connect(
-        host=os.environ["POSTGRES_HOST"],
-        port=os.environ["POSTGRES_PORT"],
-        dbname=os.environ["POSTGRES_DB"],
-        user=os.environ["POSTGRES_USER"],
-        password=os.environ["POSTGRES_PASSWORD"],
-    )
 
 
 def _build_row(
@@ -84,5 +69,5 @@ def load_raw(csv_processed_path: Path, film_list: Sequence[Mapping[str, str]]) -
     """
     rows = [_build_row(csv_processed_path, film) for film in film_list]
 
-    with _open_connection() as conn, conn.cursor() as cur:
+    with open_connection() as conn, conn.cursor() as cur:
         cur.executemany(INSERT_RAW_WATCHLIST, rows)
