@@ -35,11 +35,13 @@ class FakeSession:
 
 @pytest.fixture
 def session() -> FakeSession:
+    """Sesión falsa que por defecto responde con una lista de resultados vacía"""
     return FakeSession(FakeResponse({"results": []}))
 
 
 @pytest.fixture
 def client(session: FakeSession, monkeypatch: pytest.MonkeyPatch) -> TMDBClient:
+    """TMDBClient que usa la sesión falsa del fixture session en vez de la real"""
     client = TMDBClient("fake-token")
     monkeypatch.setattr(client, "session", session)
     return client
