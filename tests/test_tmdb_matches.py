@@ -5,8 +5,8 @@ import pytest
 from psycopg.rows import TupleRow
 
 from db import open_connection
-from matching import MatchStatus
-from tmdb_matches import PendingFilm, get_pending_films
+from matching import MatchResult, MatchStatus
+from tmdb_matches import PendingFilm, get_pending_films, save_match
 
 INSERT_WATCHLIST_ROW = """
     INSERT INTO raw_watchlist (
@@ -28,12 +28,14 @@ INSERT_MATCH = """
     INSERT INTO tmdb_matches (
         letterboxd_uri,
         tmdb_id,
-        match_status
+        match_status,
+        matched_at
     )
     VALUES (
         %(letterboxd_uri)s,
         %(tmdb_id)s,
-        %(match_status)s
+        %(match_status)s,
+        %(matched_at)s
     )
 """
 OLDER_LOAD = datetime(2026, 1, 1, tzinfo=UTC)
@@ -63,13 +65,15 @@ def _insert_match(
     conn: psycopg.Connection[TupleRow],
     letterboxd_uri: str,
     tmdb_id: int | None,
-    status: MatchStatus,
+    match_status: MatchStatus,
+    matched_at: datetime = OLDER_LOAD,
 ) -> None:
     """Inserta un emparejamiento en tmdb_matches"""
     row = {
         "letterboxd_uri": letterboxd_uri,
         "tmdb_id": tmdb_id,
-        "match_status": status,
+        "match_status": match_status,
+        "matched_at": matched_at,
     }
     with conn.cursor() as cur:
         cur.execute(INSERT_MATCH, row)
@@ -102,8 +106,12 @@ def test_get_pending_films_returns_all(clean_db: None) -> None:
         result = get_pending_films(conn)
 
     assert result == [
-        PendingFilm("https://boxd.it/aaa", "Get Out", "2017"),
-        PendingFilm("https://boxd.it/bbb", "Todavía", ""),
+        PendingFilm(
+            letterboxd_uri="https://boxd.it/aaa", film_name="Get Out", film_year="2017"
+        ),
+        PendingFilm(
+            letterboxd_uri="https://boxd.it/bbb", film_name="Todavía", film_year=""
+        ),
     ]
 
 
@@ -114,8 +122,8 @@ def test_get_pending_films_latest_load(clean_db: None) -> None:
         _insert_watchlist_row(
             conn,
             "https://boxd.it/aaa",
-            "2046",
-            "2004",
+            "Omaha",
+            "2025",
             NEWER_LOAD,
         )
         _insert_watchlist_row(
@@ -128,7 +136,11 @@ def test_get_pending_films_latest_load(clean_db: None) -> None:
 
         result = get_pending_films(conn)
 
-    assert result == [PendingFilm("https://boxd.it/aaa", "2046", "2004")]
+    assert result == [
+        PendingFilm(
+            letterboxd_uri="https://boxd.it/aaa", film_name="Omaha", film_year="2025"
+        )
+    ]
 
 
 def test_get_pending_films_same_load_highest_id(clean_db: None) -> None:
@@ -136,8 +148,8 @@ def test_get_pending_films_same_load_highest_id(clean_db: None) -> None:
         _insert_watchlist_row(
             conn,
             "https://boxd.it/aaa",
-            "2046",
-            "2004",
+            "Omaha",
+            "2025",
             NEWER_LOAD,
         )
         _insert_watchlist_row(
@@ -150,7 +162,11 @@ def test_get_pending_films_same_load_highest_id(clean_db: None) -> None:
 
         result = get_pending_films(conn)
 
-    assert result == [PendingFilm("https://boxd.it/aaa", "Get Out", "2017")]
+    assert result == [
+        PendingFilm(
+            letterboxd_uri="https://boxd.it/aaa", film_name="Get Out", film_year="2017"
+        )
+    ]
 
 
 @pytest.mark.parametrize(
@@ -182,7 +198,11 @@ def test_get_pending_films_excludes_saved_matches(
 
         result = get_pending_films(conn)
 
-    assert result == [PendingFilm("https://boxd.it/bbb", "Todavía", "")]
+    assert result == [
+        PendingFilm(
+            letterboxd_uri="https://boxd.it/bbb", film_name="Todavía", film_year=""
+        )
+    ]
 
 
 def test_get_pending_films_excludes_null_uri(clean_db: None) -> None:
@@ -204,4 +224,96 @@ def test_get_pending_films_excludes_null_uri(clean_db: None) -> None:
 
         result = get_pending_films(conn)
 
-    assert result == [PendingFilm("https://boxd.it/bbb", "Todavía", "")]
+    assert result == [
+        PendingFilm(
+            letterboxd_uri="https://boxd.it/bbb", film_name="Todavía", film_year=""
+        )
+    ]
+
+
+@pytest.mark.parametrize(
+    "tmdb_id, match_status",
+    [
+        pytest.param(1234, MatchStatus.MATCHED, id="matched"),
+        pytest.param(None, MatchStatus.NOT_FOUND, id="not_found"),
+    ],
+)
+def test_save_match_inserts(
+    tmdb_id: int | None, match_status: MatchStatus, clean_db: None
+) -> None:
+    match_result = MatchResult(tmdb_id=tmdb_id, status=match_status)
+
+    with open_connection() as conn:
+        save_match(conn, "https://boxd.it/aaa", match_result)
+
+        rows = conn.execute(
+            """
+            SELECT letterboxd_uri, tmdb_id, match_status
+            FROM tmdb_matches
+            """
+        ).fetchall()
+
+    assert rows == [("https://boxd.it/aaa", tmdb_id, match_status)]
+
+
+def test_save_match_replaces_existing_match(clean_db: None) -> None:
+    match_result = MatchResult(tmdb_id=4321, status=MatchStatus.MANUAL)
+
+    with open_connection() as conn:
+        _insert_match(conn, "https://boxd.it/aaa", 1234, MatchStatus.AMBIGUOUS)
+
+        save_match(conn, "https://boxd.it/aaa", match_result)
+
+        rows = conn.execute(
+            """
+            SELECT letterboxd_uri, tmdb_id, match_status, matched_at
+            FROM tmdb_matches
+            """
+        ).fetchall()
+
+    assert len(rows) == 1
+    letterboxd_uri, tmdb_id, match_status, matched_at = rows[0]
+    assert (letterboxd_uri, tmdb_id, match_status) == (
+        "https://boxd.it/aaa",
+        4321,
+        MatchStatus.MANUAL,
+    )
+    assert matched_at > OLDER_LOAD
+
+
+def test_save_match_removes_film_from_pending(clean_db: None) -> None:
+    match_result = MatchResult(tmdb_id=1234, status=MatchStatus.MATCHED)
+
+    with open_connection() as conn:
+        _insert_watchlist_row(
+            conn,
+            "https://boxd.it/aaa",
+            "Get Out",
+            "2017",
+            NEWER_LOAD,
+        )
+        _insert_watchlist_row(
+            conn,
+            "https://boxd.it/bbb",
+            "Todavía",
+            "",
+            NEWER_LOAD,
+        )
+
+        pending_before = get_pending_films(conn)
+        save_match(conn, "https://boxd.it/aaa", match_result)
+        pending_after = get_pending_films(conn)
+
+    assert pending_before == [
+        PendingFilm(
+            letterboxd_uri="https://boxd.it/aaa", film_name="Get Out", film_year="2017"
+        ),
+        PendingFilm(
+            letterboxd_uri="https://boxd.it/bbb", film_name="Todavía", film_year=""
+        ),
+    ]
+    assert pending_after == [
+        PendingFilm(
+            letterboxd_uri="https://boxd.it/bbb", film_name="Todavía", film_year=""
+        )
+    ]
