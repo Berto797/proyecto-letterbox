@@ -82,7 +82,27 @@ def _filter_by_year(
 def match_film(
     name: str, year: str, search: Callable[[str, str | None], list[dict[str, Any]]]
 ) -> MatchResult:
-    """Busca una película en TMDB y decide su tmdb_id y match_status"""
+    """Busca una película en TMDB y decide su tmdb_id y match_status.
+
+    Primero busca por título y año. Si ningún resultado coincide con el
+    título y la película tiene año, repite la búsqueda sin año y se queda
+    con los candidatos estrenados como mucho un año antes o después. Con
+    los candidatos que quedan, elige el resultado con decide.
+
+    Args:
+        name: Título de la película en Letterboxd.
+        year: Año de estreno en Letterboxd, o cadena vacía si no tiene.
+        search: Función que busca en TMDB por título y año (o None) y
+            devuelve la lista de resultados, normalmente
+            TMDBClient.search_movies.
+
+    Returns:
+        MatchResult con el tmdb_id y el match_status elegidos.
+
+    Raises:
+        Exception: Propaga sin capturar las excepciones de search, por
+            ejemplo requests.HTTPError si falla la petición a TMDB.
+    """
     search_year = year or None
     results = search(name, search_year)
     candidates = filter_candidates(name, results)
