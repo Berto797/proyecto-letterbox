@@ -1,9 +1,13 @@
+from collections import Counter
+from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
 import psycopg
 from psycopg.rows import TupleRow, class_row
 
-from matching import MatchResult
+from db import open_connection
+from matching import MatchResult, MatchStatus, match_film
 
 GET_PENDING_FILMS = """
     SELECT DISTINCT ON (w.letterboxd_uri)
@@ -96,3 +100,42 @@ def save_match(
         "match_status": match_result.status,
     }
     conn.execute(UPSERT_TMDB_MATCHES, parameters)
+
+
+def match_pending_films(
+    search: Callable[[str, str | None], list[dict[str, Any]]],
+) -> Counter[MatchStatus]:
+    """Empareja con TMDB las películas pendientes y guarda los resultados.
+
+    Abre su propia conexión, obtiene las películas pendientes con
+    get_pending_films y, para cada una, la empareja con match_film y
+    guarda el resultado con save_match. Hace commit después de cada
+    película: si algo falla, las ya emparejadas quedan guardadas y la
+    siguiente ejecución continúa por la primera que falte. Un error
+    detiene el proceso, sin pasar a la siguiente película.
+
+    Args:
+        search: Función que busca en TMDB por título y año (o None) y
+            devuelve la lista de resultados, normalmente
+            TMDBClient.search_movies.
+
+    Returns:
+        Counter con el número de películas emparejadas en cada
+        match_status. Vacío si no había ninguna película pendiente.
+
+    Raises:
+        KeyError: Si falta alguna de las variables POSTGRES_*.
+        psycopg.Error: Si falla la conexión con PostgreSQL, la consulta
+            o el guardado de un emparejamiento.
+        Exception: Propaga sin capturar las excepciones de search, por
+            ejemplo requests.HTTPError si falla la petición a TMDB.
+    """
+    counts: Counter[MatchStatus] = Counter()
+    with open_connection() as conn:
+        pending_films = get_pending_films(conn)
+        for film in pending_films:
+            match_result = match_film(film.film_name, film.film_year, search)
+            save_match(conn, film.letterboxd_uri, match_result)
+            conn.commit()
+            counts[match_result.status] += 1
+    return counts
