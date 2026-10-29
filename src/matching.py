@@ -32,18 +32,12 @@ class MatchResult:
             )
 
 
-def normalize_title(title: str) -> str:
+def _normalize_title(title: str) -> str:
     """Normaliza un título para compararlo con otros.
 
     Quita los acentos y otras marcas diacríticas (la ñ pasa a ser n) y lo
     pasa a minúsculas con casefold, que también trata casos como la ß
     alemana. Así "Amélie" y "AMELIE" quedan iguales.
-
-    Args:
-        title: Título a normalizar.
-
-    Returns:
-        El título sin acentos y en minúsculas.
     """
     decomposed = unicodedata.normalize("NFKD", title)
     without_accent = "".join(
@@ -54,48 +48,33 @@ def normalize_title(title: str) -> str:
     return normalized_title
 
 
-def filter_candidates(
+def _filter_candidates(
     name: str, results: Sequence[Mapping[str, Any]]
 ) -> list[dict[str, Any]]:
     """Obtiene los resultados de TMDB cuyo título coincide con name.
 
     Un resultado coincide si su title o su original_title es igual a name
-    una vez normalizados los dos con normalize_title.
-
-    Args:
-        name: Título de la película en Letterboxd.
-        results: Resultados de la búsqueda en TMDB.
-
-    Returns:
-        Lista con una copia de cada resultado que coincide, en el mismo
-        orden. Vacía si no coincide ninguno.
+    una vez normalizados los dos con _normalize_title. Devuelve una copia
+    de cada resultado que coincide, en el mismo orden.
     """
-    normalized_name = normalize_title(name)
+    normalized_name = _normalize_title(name)
     candidates = [
         dict(candidate)
         for candidate in results
         if (
-            normalize_title(candidate["title"]) == normalized_name
-            or normalize_title(candidate["original_title"]) == normalized_name
+            _normalize_title(candidate["title"]) == normalized_name
+            or _normalize_title(candidate["original_title"]) == normalized_name
         )
     ]
     return candidates
 
 
-def decide(candidates: Sequence[Mapping[str, Any]]) -> MatchResult:
+def _decide(candidates: Sequence[Mapping[str, Any]]) -> MatchResult:
     """Elige el tmdb_id y el match_status según los candidatos filtrados.
 
-    Sin candidatos, la película queda como not_found. Con uno, como
-    matched. Con varios, como ambiguous, y se elige el que tiene más
-    vote_count, es decir, el más popular en TMDB.
-
-    Args:
-        candidates: Resultados de TMDB que coinciden con el título,
-            normalmente devueltos por filter_candidates.
-
-    Returns:
-        MatchResult con el tmdb_id elegido (None si no hay candidatos) y
-        su match_status.
+    Sin candidatos, la película queda como not_found y con tmdb_id None.
+    Con uno, como matched. Con varios, como ambiguous, y se elige el que
+    tiene más vote_count, es decir, el más popular en TMDB.
     """
     if not candidates:
         return MatchResult(tmdb_id=None, status=MatchStatus.NOT_FOUND)
@@ -126,8 +105,10 @@ def match_film(
 
     Primero busca por título y año. Si ningún resultado coincide con el
     título y la película tiene año, repite la búsqueda sin año y se queda
-    con los candidatos estrenados como mucho un año antes o después. Con
-    los candidatos que quedan, elige el resultado con decide.
+    con los candidatos estrenados como mucho un año antes o después. Si
+    hay un candidato, la película queda como matched; si hay varios, como
+    ambiguous, con el de más vote_count; y si no hay ninguno, como
+    not_found.
 
     Args:
         name: Título de la película en Letterboxd.
@@ -145,9 +126,9 @@ def match_film(
     """
     search_year = year or None
     results = search(name, search_year)
-    candidates = filter_candidates(name, results)
+    candidates = _filter_candidates(name, results)
     if not candidates and search_year is not None:
         without_year_results = search(name, None)
-        new_candidates = filter_candidates(name, without_year_results)
+        new_candidates = _filter_candidates(name, without_year_results)
         candidates = _filter_by_year(new_candidates, int(search_year))
-    return decide(candidates)
+    return _decide(candidates)

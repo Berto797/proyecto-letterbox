@@ -6,11 +6,11 @@ import pytest
 from matching import (
     MatchResult,
     MatchStatus,
+    _decide,
     _filter_by_year,
-    decide,
-    filter_candidates,
+    _filter_candidates,
+    _normalize_title,
     match_film,
-    normalize_title,
 )
 
 RAY = {"id": 1, "title": "Ray", "original_title": "Ray"}
@@ -104,7 +104,7 @@ def test_match_result_accepts_consistent_values(
     ],
 )
 def test_normalize_title(title: str, expected_title: str) -> None:
-    result = normalize_title(title)
+    result = _normalize_title(title)
 
     assert result == expected_title
 
@@ -130,7 +130,7 @@ def test_filter_candidates(
     results: Sequence[Mapping[str, Any]],
     expected_candidates: Sequence[Mapping[str, Any]],
 ) -> None:
-    result = filter_candidates(name, results)
+    result = _filter_candidates(name, results)
 
     assert result == expected_candidates
 
@@ -163,7 +163,7 @@ def test_filter_candidates(
 def test_decide(
     candidates: Sequence[Mapping[str, Any]], expected_result: MatchResult
 ) -> None:
-    result = decide(candidates)
+    result = _decide(candidates)
 
     assert result == expected_result
 
