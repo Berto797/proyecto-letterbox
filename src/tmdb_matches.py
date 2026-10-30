@@ -1,13 +1,11 @@
 from collections import Counter
-from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
 
 import psycopg
 from psycopg.rows import TupleRow, class_row
 
 from db import open_connection
-from matching import MatchResult, MatchStatus, match_film
+from matching import MatchResult, MatchStatus, SearchFunction, match_film
 
 GET_PENDING_FILMS = """
     SELECT DISTINCT ON (w.letterboxd_uri)
@@ -102,9 +100,7 @@ def save_match(
     conn.execute(UPSERT_TMDB_MATCHES, parameters)
 
 
-def match_pending_films(
-    search: Callable[[str, str | None], list[dict[str, Any]]],
-) -> Counter[MatchStatus]:
+def match_pending_films(search: SearchFunction) -> Counter[MatchStatus]:
     """Empareja con TMDB las películas pendientes y guarda los resultados.
 
     Abre su propia conexión, obtiene las películas pendientes con

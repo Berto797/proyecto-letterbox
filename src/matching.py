@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
 
+type SearchFunction = Callable[[str, str | None], list[dict[str, Any]]]
+
 
 class MatchStatus(StrEnum):
     """Estados posibles de un emparejamiento en tmdb_matches"""
@@ -98,9 +100,7 @@ def _filter_by_year(
     ]
 
 
-def match_film(
-    name: str, year: str, search: Callable[[str, str | None], list[dict[str, Any]]]
-) -> MatchResult:
+def match_film(name: str, year: str, search: SearchFunction) -> MatchResult:
     """Busca una película en TMDB y decide su tmdb_id y match_status.
 
     Primero busca por título y año. Si ningún resultado coincide con el
