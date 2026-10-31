@@ -19,7 +19,7 @@ def _get_csv_files(input_path: Path) -> list[Path]:
 
 
 def _get_single_csv(input_path: Path, csv_files: Sequence[Path]) -> Path:
-    """Comprueba que el número de CSV sea 1 y, si es así, te devuelve la ruta del archivo CSV"""
+    """Comprueba que hay un único CSV y devuelve su ruta"""
     if len(csv_files) == 0:
         raise FileNotFoundError(f"No se encontró ningún CSV en la ruta: {input_path}")
     if len(csv_files) > 1:
@@ -32,7 +32,11 @@ def _get_single_csv(input_path: Path, csv_files: Sequence[Path]) -> Path:
 
 
 def _extract_csv(csv_file: Path) -> list[dict[str, str]]:
-    """Extrae la información del .csv"""
+    """Lee el CSV y devuelve sus filas como diccionarios.
+
+    Comprueba que tiene los encabezados obligatorios y al menos una
+    película. El archivo tiene que estar en UTF-8 (con o sin BOM).
+    """
     try:
         with open(csv_file, encoding="utf-8-sig", newline="") as f:
             reader = csv.DictReader(f)

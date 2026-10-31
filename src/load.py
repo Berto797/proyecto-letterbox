@@ -35,7 +35,11 @@ INSERT_RAW_WATCHLIST = """
 def _build_row(
     csv_processed_path: Path, film: Mapping[str, str]
 ) -> dict[str, str | Jsonb]:
-    """Construye la fila de raw_watchlist de una película, con extra_fields y source_file"""
+    """Construye la fila de raw_watchlist de una película.
+
+    Además de las columnas obligatorias, añade extra_fields con las
+    columnas desconocidas y source_file con el nombre del CSV procesado.
+    """
     row: dict[str, str | Jsonb] = {
         new: film[old] for old, new in MAPPING_HEADERS.items()
     }
