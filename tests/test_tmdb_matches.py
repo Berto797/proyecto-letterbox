@@ -191,7 +191,7 @@ def test_get_pending_films_same_load_highest_id(clean_db: None) -> None:
     ],
 )
 def test_get_pending_films_excludes_saved_matches(
-    tmdb_id: int | None, match_status: MatchStatus, clean_db: None
+    clean_db: None, tmdb_id: int | None, match_status: MatchStatus
 ) -> None:
     with open_connection() as conn:
         _insert_watchlist_row(
@@ -253,7 +253,7 @@ def test_get_pending_films_excludes_null_uri(clean_db: None) -> None:
     ],
 )
 def test_save_match_inserts(
-    tmdb_id: int | None, match_status: MatchStatus, clean_db: None
+    clean_db: None, tmdb_id: int | None, match_status: MatchStatus
 ) -> None:
     match_result = MatchResult(tmdb_id=tmdb_id, status=match_status)
 

@@ -41,7 +41,7 @@ def postgres_connection_info() -> Iterator[dict[str, str]]:
         }
 
 
-@pytest.fixture()
+@pytest.fixture
 def clean_db(
     postgres_connection_info: Mapping[str, str], monkeypatch: pytest.MonkeyPatch
 ) -> Iterator[None]:
