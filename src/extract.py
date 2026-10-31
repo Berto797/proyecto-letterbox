@@ -23,9 +23,10 @@ def _get_single_csv(input_path: Path, csv_files: Sequence[Path]) -> Path:
     if len(csv_files) == 0:
         raise FileNotFoundError(f"No se encontró ningún CSV en la ruta: {input_path}")
     if len(csv_files) > 1:
-        csv_files_names = [path.name for path in csv_files]
+        found_names = ", ".join(sorted(path.name for path in csv_files))
         raise ValueError(
-            f"Se esperaba 1 archivo CSV y en la ruta hay {len(csv_files)}. Los CSV encontrados son los siguientes: {', '.join(sorted(csv_files_names))}"
+            f"Se esperaba 1 archivo CSV y en la ruta hay {len(csv_files)}. "
+            f"Los CSV encontrados son los siguientes: {found_names}"
         )
     return csv_files[0]
 
@@ -51,8 +52,9 @@ def _validate_headers(csv_file: Path, fieldnames: Sequence[str] | None) -> None:
         raise ValueError(f"Archivo {csv_file.name} vacío")
     missing_headers = REQUIRED_HEADERS - set(fieldnames)
     if missing_headers:
+        missing_names = ", ".join(sorted(missing_headers))
         raise ValueError(
-            f"Faltan los encabezados: {', '.join(sorted(missing_headers))} en el CSV {csv_file.name}"
+            f"Faltan los encabezados: {missing_names} en el CSV {csv_file.name}"
         )
 
 
