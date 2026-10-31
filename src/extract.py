@@ -19,19 +19,24 @@ def _get_csv_files(input_path: Path) -> list[Path]:
 
 
 def _get_single_csv(input_path: Path, csv_files: Sequence[Path]) -> Path:
-    """Comprueba que el número de CSV sea 1 y, si es así, te devuelve la ruta del archivo CSV"""
+    """Comprueba que hay un único CSV y devuelve su ruta"""
     if len(csv_files) == 0:
         raise FileNotFoundError(f"No se encontró ningún CSV en la ruta: {input_path}")
     if len(csv_files) > 1:
-        csv_files_names = [path.name for path in csv_files]
+        found_names = ", ".join(sorted(path.name for path in csv_files))
         raise ValueError(
-            f"Se esperaba 1 archivo CSV y en la ruta hay {len(csv_files)}. Los CSV encontrados son los siguientes: {', '.join(sorted(csv_files_names))}"
+            f"Se esperaba 1 archivo CSV y en la ruta hay {len(csv_files)}. "
+            f"Los CSV encontrados son los siguientes: {found_names}"
         )
     return csv_files[0]
 
 
 def _extract_csv(csv_file: Path) -> list[dict[str, str]]:
-    """Extrae la información del .csv"""
+    """Lee el CSV y devuelve sus filas como diccionarios.
+
+    Comprueba que tiene los encabezados obligatorios y al menos una
+    película. El archivo tiene que estar en UTF-8 (con o sin BOM).
+    """
     try:
         with open(csv_file, encoding="utf-8-sig", newline="") as f:
             reader = csv.DictReader(f)
@@ -51,8 +56,9 @@ def _validate_headers(csv_file: Path, fieldnames: Sequence[str] | None) -> None:
         raise ValueError(f"Archivo {csv_file.name} vacío")
     missing_headers = REQUIRED_HEADERS - set(fieldnames)
     if missing_headers:
+        missing_names = ", ".join(sorted(missing_headers))
         raise ValueError(
-            f"Faltan los encabezados: {', '.join(sorted(missing_headers))} en el CSV {csv_file.name}"
+            f"Faltan los encabezados: {missing_names} en el CSV {csv_file.name}"
         )
 
 

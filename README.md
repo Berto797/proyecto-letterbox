@@ -60,7 +60,7 @@ For each film, `tmdb_matches` stores its TMDB id (empty when `not_found`), the m
 ├── .env.example        # template for your .env
 ├── .pre-commit-config.yaml
 ├── compose.yaml
-├── pyproject.toml      # pytest and mypy configuration
+├── pyproject.toml      # pytest, mypy and Ruff configuration
 ├── requirements.txt
 └── requirements-dev.txt
 ```

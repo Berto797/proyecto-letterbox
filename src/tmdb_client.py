@@ -7,7 +7,7 @@ TIMEOUT = 10
 
 
 class TMDBClient:
-    """Cliente de la API de TMDB: guarda una sesión HTTP con la cabecera de autenticación"""
+    """Cliente de la API de TMDB con una sesión HTTP autenticada"""
 
     def __init__(self, token: str) -> None:
         """Crea la sesión HTTP con el token como cabecera Authorization: Bearer"""

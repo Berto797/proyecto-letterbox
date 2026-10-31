@@ -30,7 +30,8 @@ class MatchResult:
     def __post_init__(self) -> None:
         if (self.tmdb_id is None) != (self.status == MatchStatus.NOT_FOUND):
             raise ValueError(
-                f"tmdb_id debe ser None si y solo si status es not_found (tmdb_id={self.tmdb_id}, status={self.status})"
+                "tmdb_id debe ser None si y solo si status es not_found "
+                f"(tmdb_id={self.tmdb_id}, status={self.status})"
             )
 
 

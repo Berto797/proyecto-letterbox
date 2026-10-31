@@ -69,10 +69,10 @@ def test_tmdb_client_sets_auth_header() -> None:
     ],
 )
 def test_search_movies_sends_request(
-    year: str | None,
-    expected_params: dict[str, Any],
     client: TMDBClient,
     session: FakeSession,
+    year: str | None,
+    expected_params: dict[str, Any],
 ) -> None:
     client.search_movies("Oslo", year)
 
