@@ -3,7 +3,10 @@ from pathlib import Path
 
 import pytest
 
-from review import ManualMatch, read_manual_matches
+from db import open_connection
+from db_helpers import NEWER_LOAD, SELECT_MATCHES, insert_match, insert_watchlist_row
+from matching import MatchStatus
+from review import ManualMatch, apply_manual_matches, read_manual_matches
 
 VALID_MANUAL_CSV = """letterboxd_uri,tmdb_id
 https://boxd.it/jkPq,1204
@@ -155,3 +158,100 @@ def test_read_manual_matches_invalid(
 
     with pytest.raises(ValueError, match=expected_error):
         read_manual_matches(manual_matches_csv)
+
+
+def test_apply_manual_matches_saves_manual(clean_db: None, tmp_path: Path) -> None:
+    with open_connection() as conn:
+        insert_watchlist_row(
+            conn,
+            "https://boxd.it/aaa",
+            "Get Out",
+            "2017",
+            NEWER_LOAD,
+        )
+        insert_watchlist_row(
+            conn,
+            "https://boxd.it/bbb",
+            "Todavía",
+            "",
+            NEWER_LOAD,
+        )
+
+    manual_matches_csv = tmp_path / "manual_matches.csv"
+    manual_matches_csv.write_text(
+        "letterboxd_uri,tmdb_id\nhttps://boxd.it/aaa,1204\nhttps://boxd.it/bbb,302\n",
+        encoding="utf-8",
+    )
+
+    result = apply_manual_matches(manual_matches_csv)
+
+    with open_connection() as conn:
+        rows = conn.execute(SELECT_MATCHES).fetchall()
+
+    assert result == 2
+    assert rows == [
+        ("https://boxd.it/aaa", 1204, MatchStatus.MANUAL),
+        ("https://boxd.it/bbb", 302, MatchStatus.MANUAL),
+    ]
+
+
+def test_apply_manual_matches_replaces_existing_match(
+    clean_db: None, tmp_path: Path
+) -> None:
+    with open_connection() as conn:
+        insert_watchlist_row(
+            conn,
+            "https://boxd.it/aaa",
+            "Get Out",
+            "2017",
+            NEWER_LOAD,
+        )
+        insert_match(conn, "https://boxd.it/aaa", 1234, MatchStatus.AMBIGUOUS)
+
+    manual_matches_csv = tmp_path / "manual_matches.csv"
+    manual_matches_csv.write_text(
+        "letterboxd_uri,tmdb_id\nhttps://boxd.it/aaa,1001\n", encoding="utf-8"
+    )
+
+    result = apply_manual_matches(manual_matches_csv)
+
+    with open_connection() as conn:
+        rows = conn.execute(SELECT_MATCHES).fetchall()
+
+    assert result == 1
+    assert rows == [
+        ("https://boxd.it/aaa", 1001, MatchStatus.MANUAL),
+    ]
+
+
+def test_apply_manual_matches_unknown_uri(clean_db: None, tmp_path: Path) -> None:
+    with open_connection() as conn:
+        insert_watchlist_row(
+            conn,
+            "https://boxd.it/aaa",
+            "Get Out",
+            "2017",
+            NEWER_LOAD,
+        )
+
+    manual_matches_csv = tmp_path / "manual_matches.csv"
+    manual_matches_csv.write_text(
+        "letterboxd_uri,tmdb_id\nhttps://boxd.it/aaa,1204\nhttps://boxd.it/bbb,302\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="no están en la watchlist"):
+        apply_manual_matches(manual_matches_csv)
+
+    with open_connection() as conn:
+        rows = conn.execute(SELECT_MATCHES).fetchall()
+
+    assert rows == []
+
+
+def test_apply_manual_matches_file_not_exists(tmp_path: Path) -> None:
+    manual_matches_csv = tmp_path / "manual_matches.csv"
+
+    result = apply_manual_matches(manual_matches_csv)
+
+    assert result == 0
