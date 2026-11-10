@@ -4,9 +4,21 @@ from pathlib import Path
 import pytest
 
 from db import open_connection
-from db_helpers import NEWER_LOAD, SELECT_MATCHES, insert_match, insert_watchlist_row
+from db_helpers import (
+    NEWER_LOAD,
+    OLDER_LOAD,
+    SELECT_MATCHES,
+    insert_match,
+    insert_watchlist_row,
+)
 from matching import MatchStatus
-from review import ManualMatch, apply_manual_matches, read_manual_matches
+from review import (
+    FilmToReview,
+    ManualMatch,
+    apply_manual_matches,
+    get_films_to_review,
+    read_manual_matches,
+)
 
 VALID_MANUAL_CSV = """letterboxd_uri,tmdb_id
 https://boxd.it/jkPq,1204
@@ -26,7 +38,7 @@ EXPECTED_MATCHES = [
 ]
 
 
-def test_read_manual_matches_csv_not_exists(tmp_path: Path) -> None:
+def test_read_manual_matches_file_not_exists(tmp_path: Path) -> None:
     manual_matches_csv = tmp_path / "manual_matches.csv"
 
     result = read_manual_matches(manual_matches_csv)
@@ -255,3 +267,189 @@ def test_apply_manual_matches_file_not_exists(tmp_path: Path) -> None:
     result = apply_manual_matches(manual_matches_csv)
 
     assert result == 0
+
+
+def test_get_films_to_review_empty(clean_db: None) -> None:
+    with open_connection() as conn:
+        result = get_films_to_review(conn)
+
+    assert result == []
+
+
+def test_get_films_to_review_only_review_statuses(clean_db: None) -> None:
+    with open_connection() as conn:
+        insert_watchlist_row(
+            conn,
+            "https://boxd.it/aaa",
+            "Get Out",
+            "2017",
+            NEWER_LOAD,
+        )
+        insert_watchlist_row(
+            conn,
+            "https://boxd.it/bbb",
+            "Ghost",
+            "1990",
+            NEWER_LOAD,
+        )
+        insert_watchlist_row(
+            conn,
+            "https://boxd.it/ccc",
+            "Ray",
+            "2004",
+            NEWER_LOAD,
+        )
+        insert_watchlist_row(
+            conn,
+            "https://boxd.it/ddd",
+            "Olive Kitteridge",
+            "2014",
+            NEWER_LOAD,
+        )
+        insert_watchlist_row(
+            conn,
+            "https://boxd.it/eee",
+            "Todavía",
+            "",
+            NEWER_LOAD,
+        )
+        insert_match(conn, "https://boxd.it/aaa", 1234, MatchStatus.MATCHED)
+        insert_match(conn, "https://boxd.it/bbb", 251, MatchStatus.MANUAL)
+        insert_match(conn, "https://boxd.it/ccc", 1677, MatchStatus.AMBIGUOUS)
+        insert_match(conn, "https://boxd.it/ddd", None, MatchStatus.NOT_FOUND)
+
+        result = get_films_to_review(conn)
+
+    assert result == [
+        FilmToReview(
+            letterboxd_uri="https://boxd.it/ccc",
+            film_name="Ray",
+            film_year="2004",
+            match_status=MatchStatus.AMBIGUOUS,
+            tmdb_id=1677,
+        ),
+        FilmToReview(
+            letterboxd_uri="https://boxd.it/ddd",
+            film_name="Olive Kitteridge",
+            film_year="2014",
+            match_status=MatchStatus.NOT_FOUND,
+            tmdb_id=None,
+        ),
+    ]
+
+
+def test_get_films_to_review_latest_load(clean_db: None) -> None:
+    with open_connection() as conn:
+        # La más reciente se inserta primero para que tenga el id menor:
+        # así se comprueba que gana loaded_at y no id
+        insert_watchlist_row(
+            conn,
+            "https://boxd.it/aaa",
+            "Get Out",
+            "2017",
+            NEWER_LOAD,
+        )
+        insert_watchlist_row(
+            conn,
+            "https://boxd.it/aaa",
+            "Ghost",
+            "1990",
+            OLDER_LOAD,
+        )
+        insert_match(conn, "https://boxd.it/aaa", 1234, MatchStatus.AMBIGUOUS)
+
+        result = get_films_to_review(conn)
+
+    assert result == [
+        FilmToReview(
+            letterboxd_uri="https://boxd.it/aaa",
+            film_name="Get Out",
+            film_year="2017",
+            match_status=MatchStatus.AMBIGUOUS,
+            tmdb_id=1234,
+        )
+    ]
+
+
+def test_get_films_to_review_order(clean_db: None) -> None:
+    with open_connection() as conn:
+        insert_watchlist_row(
+            conn,
+            "https://boxd.it/ddd",
+            "Ray",
+            "2004",
+            NEWER_LOAD,
+        )
+        insert_watchlist_row(
+            conn,
+            "https://boxd.it/eee",
+            "Ghost",
+            "1990",
+            NEWER_LOAD,
+        )
+        insert_watchlist_row(
+            conn,
+            "https://boxd.it/bbb",
+            "Zodiac",
+            "2007",
+            NEWER_LOAD,
+        )
+        insert_watchlist_row(
+            conn,
+            "https://boxd.it/aaa",
+            "About Time",
+            "2013",
+            NEWER_LOAD,
+        )
+        insert_watchlist_row(
+            conn,
+            "https://boxd.it/ccc",
+            "Ray",
+            "2004",
+            NEWER_LOAD,
+        )
+        insert_match(conn, "https://boxd.it/ddd", 1677, MatchStatus.AMBIGUOUS)
+        insert_match(conn, "https://boxd.it/eee", 251, MatchStatus.AMBIGUOUS)
+        insert_match(conn, "https://boxd.it/bbb", 1949, MatchStatus.AMBIGUOUS)
+        insert_match(conn, "https://boxd.it/aaa", None, MatchStatus.NOT_FOUND)
+        insert_match(conn, "https://boxd.it/ccc", 1678, MatchStatus.AMBIGUOUS)
+
+        result = get_films_to_review(conn)
+
+    assert result == [
+        FilmToReview(
+            letterboxd_uri="https://boxd.it/eee",
+            film_name="Ghost",
+            film_year="1990",
+            match_status=MatchStatus.AMBIGUOUS,
+            tmdb_id=251,
+        ),
+        FilmToReview(
+            letterboxd_uri="https://boxd.it/ccc",
+            film_name="Ray",
+            film_year="2004",
+            match_status=MatchStatus.AMBIGUOUS,
+            tmdb_id=1678,
+        ),
+        FilmToReview(
+            letterboxd_uri="https://boxd.it/ddd",
+            film_name="Ray",
+            film_year="2004",
+            match_status=MatchStatus.AMBIGUOUS,
+            tmdb_id=1677,
+        ),
+        FilmToReview(
+            letterboxd_uri="https://boxd.it/bbb",
+            film_name="Zodiac",
+            film_year="2007",
+            match_status=MatchStatus.AMBIGUOUS,
+            tmdb_id=1949,
+        ),
+        FilmToReview(
+            letterboxd_uri="https://boxd.it/aaa",
+            film_name="About Time",
+            film_year="2013",
+            match_status=MatchStatus.NOT_FOUND,
+            tmdb_id=None,
+        ),
+    ]

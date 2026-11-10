@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import psycopg
-from psycopg.rows import TupleRow
+from psycopg.rows import TupleRow, class_row
 
 from db import open_connection
 from matching import MatchResult, MatchStatus
@@ -16,6 +16,21 @@ GET_KNOWN_URIS = """
     FROM raw_watchlist
     WHERE letterboxd_uri = ANY(%(uris)s)
 """
+REVIEW_STATUSES = [MatchStatus.AMBIGUOUS, MatchStatus.NOT_FOUND]
+GET_FILMS_TO_REVIEW = """
+    WITH latest_watchlist AS (
+        SELECT DISTINCT ON (letterboxd_uri)
+            letterboxd_uri, film_name, film_year
+        FROM raw_watchlist
+        ORDER BY letterboxd_uri, loaded_at DESC, id DESC
+    )
+    SELECT w.letterboxd_uri, w.film_name, w.film_year, m.match_status, m.tmdb_id
+    FROM latest_watchlist AS w
+    INNER JOIN tmdb_matches AS m
+        ON m.letterboxd_uri = w.letterboxd_uri
+    WHERE m.match_status = ANY(%(statuses)s)
+    ORDER BY m.match_status, w.film_name, w.letterboxd_uri
+"""
 
 
 @dataclass(frozen=True)
@@ -24,6 +39,21 @@ class ManualMatch:
 
     letterboxd_uri: str
     tmdb_id: int
+
+
+@dataclass(frozen=True)
+class FilmToReview:
+    """Película de la watchlist con emparejamiento ambiguous o not_found por revisar.
+
+    El tmdb_id es el candidato propuesto por el emparejamiento automático
+    en las ambiguous, y None en las not_found.
+    """
+
+    letterboxd_uri: str
+    film_name: str
+    film_year: str
+    match_status: str
+    tmdb_id: int | None
 
 
 def _validate_manual_headers(path: Path, fieldnames: Sequence[str] | None) -> None:
@@ -171,3 +201,30 @@ def apply_manual_matches(path: Path) -> int:
                 MatchResult(tmdb_id=manual_match.tmdb_id, status=MatchStatus.MANUAL),
             )
     return len(manual_matches)
+
+
+def get_films_to_review(conn: psycopg.Connection[TupleRow]) -> list[FilmToReview]:
+    """Obtiene las películas de la watchlist que hay que revisar a mano.
+
+    Son las que tienen en tmdb_matches el match_status ambiguous o
+    not_found. Como raw_watchlist guarda una copia de la watchlist por
+    cada carga, devuelve una sola fila por letterboxd_uri, con el título
+    y el año de la carga más reciente.
+
+    Args:
+        conn: Conexión abierta a PostgreSQL, normalmente obtenida con
+            open_connection.
+
+    Returns:
+        Lista de FilmToReview ordenada por match_status (primero las
+        ambiguous), después por título y por último por letterboxd_uri.
+        Vacía si no hay ninguna película que revisar.
+
+    Raises:
+        psycopg.Error: Si falla la consulta.
+    """
+    with conn.cursor(row_factory=class_row(FilmToReview)) as cur:
+        result = cur.execute(
+            GET_FILMS_TO_REVIEW, {"statuses": REVIEW_STATUSES}
+        ).fetchall()
+    return result
