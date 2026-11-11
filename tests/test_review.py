@@ -1,3 +1,4 @@
+import codecs
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -15,9 +16,11 @@ from matching import MatchStatus
 from review import (
     FilmToReview,
     ManualMatch,
+    _write_review_csv,
     apply_manual_matches,
     get_films_to_review,
     read_manual_matches,
+    write_review_file,
 )
 
 VALID_MANUAL_CSV = """letterboxd_uri,tmdb_id
@@ -36,6 +39,16 @@ EXPECTED_MATCHES = [
     ManualMatch(letterboxd_uri="https://boxd.it/jkPq", tmdb_id=1204),
     ManualMatch(letterboxd_uri="https://boxd.it/eOCm", tmdb_id=320),
 ]
+EXPECTED_REVIEW_CSV = (
+    "letterboxd_uri,tmdb_id,film_name,film_year,match_status,tmdb_url\n"
+    "https://boxd.it/bbb,1949,Zodiac,2007,ambiguous,"
+    "https://www.themoviedb.org/movie/1949\n"
+    "https://boxd.it/aaa,,About Time,2013,not_found,"
+    "https://www.themoviedb.org/search/movie?query=About+Time\n"
+)
+EXPECTED_REVIEW_HEADER = (
+    "letterboxd_uri,tmdb_id,film_name,film_year,match_status,tmdb_url\n"
+)
 
 
 def test_read_manual_matches_file_not_exists(tmp_path: Path) -> None:
@@ -452,4 +465,107 @@ def test_get_films_to_review_order(clean_db: None) -> None:
             match_status=MatchStatus.NOT_FOUND,
             tmdb_id=None,
         ),
+    ]
+
+
+def test_write_review_csv_writes_films(tmp_path: Path) -> None:
+    films = [
+        FilmToReview(
+            letterboxd_uri="https://boxd.it/bbb",
+            film_name="Zodiac",
+            film_year="2007",
+            match_status=MatchStatus.AMBIGUOUS,
+            tmdb_id=1949,
+        ),
+        FilmToReview(
+            letterboxd_uri="https://boxd.it/aaa",
+            film_name="About Time",
+            film_year="2013",
+            match_status=MatchStatus.NOT_FOUND,
+            tmdb_id=None,
+        ),
+    ]
+    pending_matches_csv = tmp_path / "review" / "pending_matches.csv"
+
+    _write_review_csv(pending_matches_csv, films)
+
+    assert pending_matches_csv.read_text(encoding="utf-8-sig") == EXPECTED_REVIEW_CSV
+
+
+def test_write_review_csv_empty(tmp_path: Path) -> None:
+    pending_matches_csv = tmp_path / "review" / "pending_matches.csv"
+
+    _write_review_csv(pending_matches_csv, [])
+
+    assert pending_matches_csv.read_text(encoding="utf-8-sig") == EXPECTED_REVIEW_HEADER
+
+
+def test_write_review_csv_overwrites(tmp_path: Path) -> None:
+    pending_matches_csv = tmp_path / "pending_matches.csv"
+    pending_matches_csv.write_text("contenido antiguo\n", encoding="utf-8")
+
+    _write_review_csv(pending_matches_csv, [])
+
+    assert pending_matches_csv.read_text(encoding="utf-8-sig") == EXPECTED_REVIEW_HEADER
+
+
+def test_write_review_csv_bom(tmp_path: Path) -> None:
+    pending_matches_csv = tmp_path / "pending_matches.csv"
+
+    _write_review_csv(pending_matches_csv, [])
+
+    assert pending_matches_csv.read_bytes().startswith(codecs.BOM_UTF8)
+
+
+def test_write_review_file(clean_db: None, tmp_path: Path) -> None:
+    with open_connection() as conn:
+        insert_watchlist_row(
+            conn,
+            "https://boxd.it/bbb",
+            "Zodiac",
+            "2007",
+            NEWER_LOAD,
+        )
+        insert_match(conn, "https://boxd.it/bbb", 1949, MatchStatus.AMBIGUOUS)
+
+    pending_matches_csv = tmp_path / "review" / "pending_matches.csv"
+
+    result = write_review_file(pending_matches_csv)
+
+    expected_row = (
+        "https://boxd.it/bbb,1949,Zodiac,2007,ambiguous,"
+        "https://www.themoviedb.org/movie/1949\n"
+    )
+    assert result == 1
+    assert (
+        pending_matches_csv.read_text(encoding="utf-8-sig")
+        == EXPECTED_REVIEW_HEADER + expected_row
+    )
+
+
+def test_review_csv_readable_as_manual_matches(tmp_path: Path) -> None:
+    films = [
+        FilmToReview(
+            letterboxd_uri="https://boxd.it/bbb",
+            film_name="Zodiac",
+            film_year="2007",
+            match_status=MatchStatus.AMBIGUOUS,
+            tmdb_id=1949,
+        ),
+        FilmToReview(
+            letterboxd_uri="https://boxd.it/aaa",
+            film_name="About Time",
+            film_year="2013",
+            match_status=MatchStatus.AMBIGUOUS,
+            tmdb_id=323,
+        ),
+    ]
+    pending_matches_csv = tmp_path / "review" / "pending_matches.csv"
+    _write_review_csv(pending_matches_csv, films)
+
+    result = read_manual_matches(pending_matches_csv)
+
+    assert result == [
+        ManualMatch(letterboxd_uri="https://boxd.it/bbb", tmdb_id=1949),
+        ManualMatch(letterboxd_uri="https://boxd.it/aaa", tmdb_id=323),
     ]

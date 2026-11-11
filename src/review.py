@@ -2,6 +2,7 @@ import csv
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import quote_plus
 
 import psycopg
 from psycopg.rows import TupleRow, class_row
@@ -31,6 +32,16 @@ GET_FILMS_TO_REVIEW = """
     WHERE m.match_status = ANY(%(statuses)s)
     ORDER BY m.match_status, w.film_name, w.letterboxd_uri
 """
+REVIEW_HEADERS = [
+    "letterboxd_uri",
+    "tmdb_id",
+    "film_name",
+    "film_year",
+    "match_status",
+    "tmdb_url",
+]
+TMDB_MOVIE_URL = "https://www.themoviedb.org/movie/"
+TMDB_SEARCH_URL = "https://www.themoviedb.org/search/movie?query="
 
 
 @dataclass(frozen=True)
@@ -123,6 +134,32 @@ def _validate_known_uris(
             f"Los letterboxd_uri {unknown_names} de {path.name} "
             "no están en la watchlist"
         )
+
+
+def _tmdb_url(film: FilmToReview) -> str:
+    """Devuelve el enlace a la ficha en TMDB o, si no hay tmdb_id, a su búsqueda"""
+    if film.tmdb_id is None:
+        return TMDB_SEARCH_URL + quote_plus(film.film_name)
+    return TMDB_MOVIE_URL + str(film.tmdb_id)
+
+
+def _write_review_csv(path: Path, films: Sequence[FilmToReview]) -> None:
+    """Escribe las películas por revisar en un CSV, creando la carpeta si no existe"""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8-sig", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=REVIEW_HEADERS)
+        writer.writeheader()
+        for film in films:
+            writer.writerow(
+                {
+                    "letterboxd_uri": film.letterboxd_uri,
+                    "tmdb_id": film.tmdb_id,
+                    "film_name": film.film_name,
+                    "film_year": film.film_year,
+                    "match_status": film.match_status,
+                    "tmdb_url": _tmdb_url(film),
+                }
+            )
 
 
 def read_manual_matches(path: Path) -> list[ManualMatch]:
@@ -228,3 +265,35 @@ def get_films_to_review(conn: psycopg.Connection[TupleRow]) -> list[FilmToReview
             GET_FILMS_TO_REVIEW, {"statuses": REVIEW_STATUSES}
         ).fetchall()
     return result
+
+
+def write_review_file(path: Path) -> int:
+    """Escribe en un CSV las películas que hay que revisar a mano.
+
+    Obtiene las películas ambiguous y not_found con get_films_to_review y
+    las escribe en el archivo, con un enlace a TMDB para comprobar cada
+    una. Las cuatro primeras columnas siguen el orden de
+    manual_matches.csv, así que se pueden copiar filas enteras de un
+    archivo al otro. El archivo se regenera en cada ejecución, aunque no
+    haya ninguna película que revisar (en ese caso solo tiene los
+    encabezados), para que nunca quede uno antiguo con películas ya
+    resueltas. Si la carpeta no existe, la crea. Abre su propia conexión
+    y la cierra antes de escribir el archivo.
+
+    Args:
+        path: Ruta del archivo de revisión, normalmente
+            data/review/pending_matches.csv.
+
+    Returns:
+        Número de películas escritas en el archivo. 0 si no hay ninguna
+        que revisar.
+
+    Raises:
+        KeyError: Si falta alguna de las variables POSTGRES_*.
+        psycopg.Error: Si falla la conexión con PostgreSQL o la consulta.
+        OSError: Si no se puede crear la carpeta o escribir el archivo.
+    """
+    with open_connection() as conn:
+        films = get_films_to_review(conn)
+    _write_review_csv(path, films)
+    return len(films)
