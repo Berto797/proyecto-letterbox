@@ -18,3 +18,9 @@ data/processed/*
 
 # Mantiene carpeta processed
 !data/processed/.gitkeep
+
+# Archivo real de emparejamientos manuales
+data/manual_matches.csv
+
+# Carpeta del archivo de revisión
+data/review/
