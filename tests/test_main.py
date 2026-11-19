@@ -17,6 +17,32 @@ VALID_CSV = """Date,Name,Year,Letterboxd URI
 """
 
 
+@pytest.fixture(autouse=True)
+def fake_review(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """Sustituye los pasos de revisión manual por versiones falsas en todos los tests.
+
+    Se aplica automáticamente a todos los tests de este archivo para que
+    ninguno toque PostgreSQL ni lea o escriba archivos. Las funciones
+    falsas devuelven 0 y apuntan cada llamada ("apply" o "write") en la
+    lista que devuelve la fixture, para comprobar qué pasos se ejecutan y
+    en qué orden.
+    """
+    steps: list[str] = []
+
+    def fake_apply_manual_matches(path: Path) -> int:
+        steps.append("apply")
+        return 0
+
+    def fake_write_review_file(path: Path) -> int:
+        steps.append("write")
+        return 0
+
+    monkeypatch.setattr(main, "apply_manual_matches", fake_apply_manual_matches)
+    monkeypatch.setattr(main, "write_review_file", fake_write_review_file)
+
+    return steps
+
+
 @pytest.fixture
 def fake_match(monkeypatch: pytest.MonkeyPatch) -> list[SearchFunction]:
     """Sustituye el emparejamiento por uno falso que apunta cada llamada, sin TMDB"""
@@ -239,3 +265,107 @@ def test_main_missing_token(
     assert "El pipeline no se ha completado" in captured.err
     assert "Falta TMDB_TOKEN" in captured.err
     assert captured.out == ""
+
+
+def test_main_steps_order(
+    monkeypatch: pytest.MonkeyPatch, fake_review: list[str]
+) -> None:
+    monkeypatch.setenv("TMDB_TOKEN", "fake-token")
+
+    def fake_match_pending_films(search: SearchFunction) -> Counter[MatchStatus]:
+        fake_review.append("match")
+        return Counter()
+
+    monkeypatch.setattr(main, "match_pending_films", fake_match_pending_films)
+
+    main.main(["-m"])
+
+    assert fake_review == ["apply", "match", "write"]
+
+
+@pytest.mark.parametrize(
+    "applied_count, films_count, expected_lines, unexpected_text",
+    [
+        pytest.param(
+            3,
+            18,
+            [
+                "Se han aplicado 3 emparejamientos manuales",
+                "Hay 18 películas por revisar en data/review/pending_matches.csv",
+            ],
+            None,
+            id="with_counts",
+        ),
+        pytest.param(
+            0,
+            0,
+            ["No hay películas que revisar"],
+            "emparejamientos manuales",
+            id="zero_counts",
+        ),
+    ],
+)
+def test_main_review_messages(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    fake_match: list[SearchFunction],
+    applied_count: int,
+    films_count: int,
+    expected_lines: Sequence[str],
+    unexpected_text: str | None,
+) -> None:
+    monkeypatch.setattr(main, "apply_manual_matches", lambda path: applied_count)
+    monkeypatch.setattr(main, "write_review_file", lambda path: films_count)
+
+    main.main(["-m"])
+
+    captured = capsys.readouterr()
+    for line in expected_lines:
+        assert line in captured.out
+    if unexpected_text is not None:
+        assert unexpected_text not in captured.out
+    assert captured.err == ""
+
+
+def test_main_manual_matches_error(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    fake_review: list[str],
+    fake_match: list[SearchFunction],
+) -> None:
+    def fake_apply_manual_matches(path: Path) -> NoReturn:
+        raise ValueError(
+            "Los letterboxd_uri https://boxd.it/zzz de manual_matches.csv "
+            "no están en la watchlist"
+        )
+
+    monkeypatch.setattr(main, "apply_manual_matches", fake_apply_manual_matches)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main.main(["-m"])
+
+    assert exc_info.value.code == 1
+    assert fake_match == []
+    assert "write" not in fake_review
+    captured = capsys.readouterr()
+    assert "El pipeline no se ha completado" in captured.err
+    assert "no están en la watchlist" in captured.err
+
+
+def test_main_review_file_error(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    fake_match: list[SearchFunction],
+) -> None:
+    def fake_write_review_file(path: Path) -> NoReturn:
+        raise PermissionError("Permission denied: 'pending_matches.csv'")
+
+    monkeypatch.setattr(main, "write_review_file", fake_write_review_file)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main.main(["-m"])
+
+    assert exc_info.value.code == 1
+    captured = capsys.readouterr()
+    assert "El pipeline no se ha completado" in captured.err
+    assert "Permission denied" in captured.err
