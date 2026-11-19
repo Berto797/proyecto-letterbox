@@ -58,6 +58,8 @@ For each film, `tmdb_matches` stores its TMDB id (empty when `not_found`), the m
 │   ├── review/         # pending_matches.csv, regenerated on every run (git-ignored)
 │   ├── manual_matches.csv          # your manual matches (optional, git-ignored)
 │   └── manual_matches.example.csv  # template for manual_matches.csv
+├── docs/
+│   └── conventions.md  # coding conventions
 ├── sql/                # schema, run automatically when the database is created
 ├── src/
 │   ├── db.py           # PostgreSQL connection from the POSTGRES_* variables
@@ -70,6 +72,7 @@ For each film, `tmdb_matches` stores its TMDB id (empty when `not_found`), the m
 │   └── tmdb_matches.py # finds pending films, matches them and saves the results
 ├── tests/
 ├── .env.example        # template for your .env
+├── CLAUDE.md           # instructions for Claude Code
 ├── .pre-commit-config.yaml
 ├── compose.yaml
 ├── pyproject.toml      # pytest, mypy and Ruff configuration
@@ -167,6 +170,7 @@ pytest
 - **pre-commit** runs before every commit: Ruff (lint and format), trailing whitespace, final newlines, YAML syntax and large files.
 - **mypy** checks types in strict mode across `src/` and `tests/`. Run it with `mypy`.
 - **GitHub Actions** runs `ruff check`, `ruff format --check`, `mypy` and `pytest` on every pull request and on every push to `main`.
+- **Coding conventions** that tools cannot check (module layout, naming, errors, database access, tests, commits) are described in [`docs/conventions.md`](docs/conventions.md). [`CLAUDE.md`](CLAUDE.md) points Claude Code to the same guide.
 
 ## Design decisions
 
