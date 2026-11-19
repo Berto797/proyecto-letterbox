@@ -1,3 +1,5 @@
+"""Emparejamiento de las películas pendientes y guardado en tmdb_matches."""
+
 from collections import Counter
 from dataclasses import dataclass
 
@@ -37,7 +39,7 @@ UPSERT_TMDB_MATCHES = """
 
 @dataclass(frozen=True)
 class PendingFilm:
-    """Película de la watchlist que aún no tiene emparejamiento en tmdb_matches"""
+    """Película de la watchlist que aún no tiene emparejamiento en tmdb_matches."""
 
     letterboxd_uri: str
     film_name: str

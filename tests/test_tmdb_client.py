@@ -7,7 +7,7 @@ from tmdb_client import TMDBClient
 
 
 class FakeResponse:
-    """Respuesta falsa de requests: devuelve un JSON preparado o lanza un error"""
+    """Respuesta falsa de requests: devuelve un JSON preparado o lanza un error."""
 
     def __init__(self, payload: dict[str, Any], error: Exception | None = None) -> None:
         self.payload = payload
@@ -22,7 +22,7 @@ class FakeResponse:
 
 
 class FakeSession:
-    """Sesión falsa que guarda cada llamada a get y devuelve una respuesta preparada"""
+    """Sesión falsa que guarda cada llamada a get y devuelve una respuesta preparada."""
 
     def __init__(self, response: FakeResponse) -> None:
         self.response = response
@@ -35,13 +35,13 @@ class FakeSession:
 
 @pytest.fixture
 def session() -> FakeSession:
-    """Sesión falsa que por defecto responde con una lista de resultados vacía"""
+    """Sesión falsa que por defecto responde con una lista de resultados vacía."""
     return FakeSession(FakeResponse({"results": []}))
 
 
 @pytest.fixture
 def client(session: FakeSession, monkeypatch: pytest.MonkeyPatch) -> TMDBClient:
-    """TMDBClient que usa la sesión falsa del fixture session en vez de la real"""
+    """TMDBClient que usa la sesión falsa del fixture session en vez de la real."""
     client = TMDBClient("fake-token")
     monkeypatch.setattr(client, "session", session)
     return client

@@ -1,3 +1,5 @@
+"""Cliente de la API de TMDB (búsqueda de películas)."""
+
 from typing import Any
 
 import requests
@@ -7,10 +9,10 @@ TIMEOUT = 10
 
 
 class TMDBClient:
-    """Cliente de la API de TMDB con una sesión HTTP autenticada"""
+    """Cliente de la API de TMDB con una sesión HTTP autenticada."""
 
     def __init__(self, token: str) -> None:
-        """Crea la sesión HTTP con el token como cabecera Authorization: Bearer"""
+        """Crea la sesión HTTP con el token como cabecera Authorization: Bearer."""
         self.session = requests.Session()
         self.session.headers.update({"Authorization": f"Bearer {token}"})
 

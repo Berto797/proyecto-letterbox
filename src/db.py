@@ -1,3 +1,5 @@
+"""Conexión con PostgreSQL a partir de las variables de entorno POSTGRES_*."""
+
 import os
 
 import psycopg

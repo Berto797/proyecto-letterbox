@@ -1,3 +1,5 @@
+"""Punto de entrada: ejecuta el pipeline completo de la watchlist."""
+
 import argparse
 import os
 import sys
@@ -20,7 +22,7 @@ REVIEW_PATH = PROJECT_DIR / "data" / "review" / "pending_matches.csv"
 
 
 def _load_watchlist(keep_original: bool) -> None:
-    """Extrae la watchlist, la carga en raw_watchlist y mueve el CSV a processed"""
+    """Extrae la watchlist, la carga en raw_watchlist y mueve el CSV a processed."""
     csv_file, film_list = extract()
     csv_processed_path = define_processed_name(csv_file)
     load_raw(csv_processed_path, film_list)
@@ -32,14 +34,14 @@ def _load_watchlist(keep_original: bool) -> None:
 
 
 def _apply_manual_matches() -> None:
-    """Aplica los emparejamientos de manual_matches.csv e imprime cuántos son"""
+    """Aplica los emparejamientos de manual_matches.csv e imprime cuántos son."""
     applied_count = apply_manual_matches(MANUAL_MATCHES_PATH)
     if applied_count > 0:
         print(f"Se han aplicado {applied_count} emparejamientos manuales")
 
 
 def _match_films() -> None:
-    """Empareja con TMDB las películas pendientes e imprime un resumen por estado"""
+    """Empareja con TMDB las películas pendientes e imprime un resumen por estado."""
     token = os.environ.get("TMDB_TOKEN")
     if not token:
         raise ValueError("Falta TMDB_TOKEN en el archivo .env")
@@ -55,7 +57,7 @@ def _match_films() -> None:
 
 
 def _write_review_file() -> None:
-    """Escribe el CSV de películas por revisar e imprime cuántas son y dónde está"""
+    """Escribe el CSV de películas por revisar e imprime cuántas son y dónde está."""
     films_count = write_review_file(REVIEW_PATH)
     if films_count == 0:
         print("No hay películas que revisar")
