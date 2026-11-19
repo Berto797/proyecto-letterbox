@@ -1,3 +1,5 @@
+"""Emparejamientos manuales y archivo de películas pendientes de revisar."""
+
 import csv
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -46,7 +48,7 @@ TMDB_SEARCH_URL = "https://www.themoviedb.org/search/movie?query="
 
 @dataclass(frozen=True)
 class ManualMatch:
-    """Emparejamiento manual de una película de la watchlist con su id de TMDB"""
+    """Emparejamiento manual de una película de la watchlist con su id de TMDB."""
 
     letterboxd_uri: str
     tmdb_id: int
@@ -68,7 +70,7 @@ class FilmToReview:
 
 
 def _validate_manual_headers(path: Path, fieldnames: Sequence[str] | None) -> None:
-    """Valida que el archivo no esté vacío y que tenga las columnas obligatorias"""
+    """Valida que el archivo no esté vacío y que tenga las columnas obligatorias."""
     if fieldnames is None:
         raise ValueError(f"Archivo {path.name} vacío")
     missing_headers = REQUIRED_MANUAL_HEADERS - set(fieldnames)
@@ -82,7 +84,7 @@ def _validate_manual_headers(path: Path, fieldnames: Sequence[str] | None) -> No
 
 
 def _read_manual_rows(path: Path) -> list[tuple[int, dict[str | None, str | None]]]:
-    """Lee las filas de manual_matches.csv junto con su número de línea"""
+    """Lee las filas de manual_matches.csv junto con su número de línea."""
     try:
         with open(path, encoding="utf-8-sig", newline="") as f:
             reader = csv.DictReader(f)
@@ -95,7 +97,7 @@ def _read_manual_rows(path: Path) -> list[tuple[int, dict[str | None, str | None
 def _parse_manual_row(
     path: Path, row: Mapping[str | None, str | None], line_num: int
 ) -> ManualMatch:
-    """Valida una fila de manual_matches.csv y la convierte en un ManualMatch"""
+    """Valida una fila de manual_matches.csv y la convierte en un ManualMatch."""
     letterboxd_uri = (row["letterboxd_uri"] or "").strip()
     tmdb_id_text = (row["tmdb_id"] or "").strip()
     if letterboxd_uri == "":
@@ -122,7 +124,7 @@ def _validate_known_uris(
     path: Path,
     manual_matches: Sequence[ManualMatch],
 ) -> None:
-    """Valida que todos los letterboxd_uri del archivo manual estén en la watchlist"""
+    """Valida que todos los letterboxd_uri del archivo manual estén en la watchlist."""
     uris = [manual_match.letterboxd_uri for manual_match in manual_matches]
     manual_uris = set(uris)
     rows = conn.execute(GET_KNOWN_URIS, {"uris": uris}).fetchall()
@@ -137,14 +139,14 @@ def _validate_known_uris(
 
 
 def _tmdb_url(film: FilmToReview) -> str:
-    """Devuelve el enlace a la ficha en TMDB o, si no hay tmdb_id, a su búsqueda"""
+    """Devuelve el enlace a la ficha en TMDB o, si no hay tmdb_id, a su búsqueda."""
     if film.tmdb_id is None:
         return TMDB_SEARCH_URL + quote_plus(film.film_name)
     return TMDB_MOVIE_URL + str(film.tmdb_id)
 
 
 def _write_review_csv(path: Path, films: Sequence[FilmToReview]) -> None:
-    """Escribe las películas por revisar en un CSV, creando la carpeta si no existe"""
+    """Escribe las películas por revisar en un CSV, creando la carpeta si no existe."""
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8-sig", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=REVIEW_HEADERS)

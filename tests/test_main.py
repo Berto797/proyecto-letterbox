@@ -45,7 +45,7 @@ def fake_review(monkeypatch: pytest.MonkeyPatch) -> list[str]:
 
 @pytest.fixture
 def fake_match(monkeypatch: pytest.MonkeyPatch) -> list[SearchFunction]:
-    """Sustituye el emparejamiento por uno falso que apunta cada llamada, sin TMDB"""
+    """Sustituye el emparejamiento por uno falso que apunta cada llamada, sin TMDB."""
     monkeypatch.setenv("TMDB_TOKEN", "fake-token")
     calls: list[SearchFunction] = []
 

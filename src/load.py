@@ -1,3 +1,5 @@
+"""Carga de las películas de la watchlist en la tabla raw_watchlist."""
+
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 

@@ -51,7 +51,7 @@ def insert_watchlist_row(
     film_year: str,
     loaded_at: datetime,
 ) -> None:
-    """Inserta una fila en raw_watchlist con la fecha de carga indicada"""
+    """Inserta una fila en raw_watchlist con la fecha de carga indicada."""
     row = {
         "letterboxd_uri": letterboxd_uri,
         "film_name": film_name,
@@ -70,7 +70,7 @@ def insert_match(
     match_status: MatchStatus,
     matched_at: datetime = OLDER_LOAD,
 ) -> None:
-    """Inserta un emparejamiento en tmdb_matches"""
+    """Inserta un emparejamiento en tmdb_matches."""
     row = {
         "letterboxd_uri": letterboxd_uri,
         "tmdb_id": tmdb_id,

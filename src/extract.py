@@ -1,3 +1,5 @@
+"""Localización, validación y lectura del CSV de la watchlist de Letterboxd."""
+
 import csv
 import shutil
 from collections.abc import Mapping, Sequence
@@ -13,13 +15,13 @@ TIMESTAMP_FORMAT = "%Y%m%d_%H_%M_%S"
 
 
 def _get_csv_files(input_path: Path) -> list[Path]:
-    """Obtiene la lista de archivos .csv de input_path"""
+    """Obtiene la lista de archivos .csv de input_path."""
     csv_files = list(input_path.glob("*.csv"))
     return csv_files
 
 
 def _get_single_csv(input_path: Path, csv_files: Sequence[Path]) -> Path:
-    """Comprueba que hay un único CSV y devuelve su ruta"""
+    """Comprueba que hay un único CSV y devuelve su ruta."""
     if len(csv_files) == 0:
         raise FileNotFoundError(f"No se encontró ningún CSV en la ruta: {input_path}")
     if len(csv_files) > 1:
@@ -51,7 +53,7 @@ def _extract_csv(csv_file: Path) -> list[dict[str, str]]:
 
 
 def _validate_headers(csv_file: Path, fieldnames: Sequence[str] | None) -> None:
-    """Valida que el archivo no esté vacío y que los headers son los esperados"""
+    """Valida que el archivo no esté vacío y que los headers son los esperados."""
     if fieldnames is None:
         raise ValueError(f"Archivo {csv_file.name} vacío")
     missing_headers = REQUIRED_HEADERS - set(fieldnames)
@@ -63,7 +65,7 @@ def _validate_headers(csv_file: Path, fieldnames: Sequence[str] | None) -> None:
 
 
 def _validate_has_films(csv_file: Path, film_list: Sequence[Mapping[str, str]]) -> None:
-    """Comprueba que el CSV tiene películas"""
+    """Comprueba que el CSV tiene películas."""
     if len(film_list) == 0:
         raise ValueError(
             f"No se han encontrado películas en el archivo CSV {csv_file.name}"

@@ -1,3 +1,5 @@
+"""Emparejamiento de cada película de la watchlist con su id de TMDB."""
+
 import unicodedata
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
@@ -8,7 +10,7 @@ type SearchFunction = Callable[[str, str | None], list[dict[str, Any]]]
 
 
 class MatchStatus(StrEnum):
-    """Estados posibles de un emparejamiento en tmdb_matches"""
+    """Estados posibles de un emparejamiento en tmdb_matches."""
 
     MATCHED = "matched"
     AMBIGUOUS = "ambiguous"
@@ -90,7 +92,7 @@ def _decide(candidates: Sequence[Mapping[str, Any]]) -> MatchResult:
 def _filter_by_year(
     candidates: Sequence[Mapping[str, Any]], year: int
 ) -> list[dict[str, Any]]:
-    """Obtiene los candidatos cuyo año de estreno está a ±1 de year"""
+    """Obtiene los candidatos cuyo año de estreno está a ±1 de year."""
     return [
         dict(candidate)
         for candidate in candidates
