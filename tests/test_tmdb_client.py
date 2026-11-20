@@ -2,8 +2,9 @@ from typing import Any
 
 import pytest
 import requests
+from requests.adapters import HTTPAdapter
 
-from tmdb_client import TMDBClient
+from tmdb_client import BASE_URL, TMDBClient
 
 
 class FakeResponse:
@@ -51,6 +52,20 @@ def test_tmdb_client_sets_auth_header() -> None:
     client = TMDBClient("fake-token")
 
     assert client.session.headers["Authorization"] == "Bearer fake-token"
+
+
+def test_tmdb_client_configures_retries() -> None:
+    client = TMDBClient("fake-token")
+
+    adapter = client.session.get_adapter(BASE_URL)
+
+    assert isinstance(adapter, HTTPAdapter)
+    retry = adapter.max_retries
+    assert retry.total == 3
+    assert retry.status_forcelist == {429, 500, 502, 503, 504}
+    assert retry.backoff_factor == 1
+    assert retry.raise_on_status is False
+    assert retry.respect_retry_after_header is True
 
 
 @pytest.mark.parametrize(
