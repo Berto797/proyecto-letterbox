@@ -40,7 +40,7 @@ For each film, `tmdb_matches` stores its TMDB id (empty when `not_found`), the m
 - Python 3.14
 - PostgreSQL 17 (Docker Compose)
 - psycopg 3
-- requests (TMDB API)
+- requests and urllib3 (TMDB API, with retries)
 - python-dotenv (loads the `.env` file)
 - pytest, testcontainers (integration tests)
 - Ruff (linting and formatting)
@@ -159,7 +159,7 @@ pytest
 ```
 
 - **Unit tests** cover CSV discovery, validation and reading, file handling, and the row transformation before loading. They also cover reading and validating `manual_matches.csv` and writing the review file (columns, TMDB links, empty file, BOM), and check that a row copied from the review file can be read as a manual match. The pipeline in `main.py` is tested with the database and TMDB steps replaced by fakes: the CSV is only moved after a successful load, `--match-only` skips the load, the steps run in order (manual → match → review), and failures (including a missing `TMDB_TOKEN`, a TMDB error, an invalid manual file or a review file that cannot be written) exit with code 1.
-- **TMDB tests** never call the real API. The matching logic receives a fake search function, and the TMDB client runs against a fake HTTP session that records each request and returns prepared responses or errors.
+- **TMDB tests** never call the real API. The matching logic receives a fake search function, and the TMDB client runs against a fake HTTP session that records each request and returns prepared responses or errors. Another test checks the retry policy configured on the real session.
 - **Integration tests** run `load_raw`, the `tmdb_matches` functions (finding pending films, saving matches and the full matching run, with a fake TMDB search) and the `review` functions (applying manual matches and finding and writing the films to review) against a real, disposable PostgreSQL 17 started with [testcontainers](https://testcontainers.com/). The schema is created from the same `sql/` scripts used by Docker Compose, so tests never touch your development database.
 - Tests never read your `.env`: it is only loaded when `main.py` is run from the command line.
 
@@ -183,7 +183,8 @@ pytest
 - **Configuration through environment variables.** No credentials or connection details in the code. The `.env` file is loaded only at the entry point (`main.py`); the other modules read the variables but never load the file.
 - **Conservative TMDB matching.** A film is matched only when its title equals the TMDB `title` or `original_title` after removing accents and case. When the film has a year, the search is filtered by it; if nothing matches, it is repeated without the year and only results within ±1 year are kept. One candidate is `matched`; several are `ambiguous` (the one with most votes is kept, for review); none is `not_found`.
 - **Pending films are those without a match.** The matching step takes the latest version of each film (by `letterboxd_uri`) from `raw_watchlist` and skips the ones that already have a row in `tmdb_matches`, so repeated loads do not cause repeated searches.
-- **Resumable matching.** Each match is committed as soon as it is saved. If a TMDB request fails, the run stops instead of skipping the film, the matches already saved are kept, and the next run continues with the films that are still pending.
+- **Temporary TMDB errors are retried.** Rate-limit (429) and server (5xx) errors and connection failures are retried up to 3 times, waiting longer each time and honouring the `Retry-After` header. Other errors, such as an invalid token (401), fail at once.
+- **Resumable matching.** Each match is committed as soon as it is saved. If a TMDB request still fails after the retries, the run stops instead of skipping the film, the matches already saved are kept, and the next run continues with the films that are still pending.
 - **Manual matches take precedence.** Films in `data/manual_matches.csv` are saved with the `manual` status, replacing any automatic match, and are never searched on TMDB. They are applied before the automatic matching, so a film added to the file is not searched first. The file is applied on every run.
 - **The manual file is applied all or nothing.** It is validated before anything is saved (required columns, a positive integer `tmdb_id`, no repeated films) and every film must be in the watchlist; if any check fails, no row is saved and the error names the line or the films to fix.
 - **The review file is regenerated on every run,** even when there is nothing to review (then it only has the header), so an old file with films already fixed is never left behind.
