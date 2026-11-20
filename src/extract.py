@@ -34,7 +34,7 @@ def _get_single_csv(input_path: Path, csv_files: Sequence[Path]) -> Path:
 
 
 def _validate_headers(csv_file: Path, fieldnames: Sequence[str] | None) -> None:
-    """Valida que el archivo no esté vacío y que los headers son los esperados."""
+    """Valida que el archivo no esté vacío y que los encabezados sean los esperados."""
     if fieldnames is None:
         raise ValueError(f"Archivo {csv_file.name} vacío")
     missing_headers = REQUIRED_HEADERS - set(fieldnames)
