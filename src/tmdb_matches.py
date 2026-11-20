@@ -78,7 +78,7 @@ def save_match(
     """Guarda el resultado de emparejar una película en tmdb_matches.
 
     Se guardan todos los estados, también not_found (con tmdb_id nulo),
-    para que la película no se vuelva a buscar. Si la letterboxd_uri ya
+    para que la película no se vuelva a buscar. Si el letterboxd_uri ya
     existe en la tabla, sustituye su tmdb_id y match_status por los
     nuevos y actualiza matched_at. No hace commit: confirmar la
     transacción es responsabilidad de quien llama a la función.
