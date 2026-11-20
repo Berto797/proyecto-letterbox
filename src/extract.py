@@ -33,6 +33,26 @@ def _get_single_csv(input_path: Path, csv_files: Sequence[Path]) -> Path:
     return csv_files[0]
 
 
+def _validate_headers(csv_file: Path, fieldnames: Sequence[str] | None) -> None:
+    """Valida que el archivo no esté vacío y que los encabezados sean los esperados."""
+    if fieldnames is None:
+        raise ValueError(f"Archivo {csv_file.name} vacío")
+    missing_headers = REQUIRED_HEADERS - set(fieldnames)
+    if missing_headers:
+        missing_names = ", ".join(sorted(missing_headers))
+        raise ValueError(
+            f"Faltan los encabezados: {missing_names} en el CSV {csv_file.name}"
+        )
+
+
+def _validate_has_films(csv_file: Path, film_list: Sequence[Mapping[str, str]]) -> None:
+    """Comprueba que el CSV tiene películas."""
+    if len(film_list) == 0:
+        raise ValueError(
+            f"No se han encontrado películas en el archivo CSV {csv_file.name}"
+        )
+
+
 def _extract_csv(csv_file: Path) -> list[dict[str, str]]:
     """Lee el CSV y devuelve sus filas como diccionarios.
 
@@ -50,26 +70,6 @@ def _extract_csv(csv_file: Path) -> list[dict[str, str]]:
         raise ValueError(
             f"El archivo {csv_file.name} no está codificado en UTF-8"
         ) from e
-
-
-def _validate_headers(csv_file: Path, fieldnames: Sequence[str] | None) -> None:
-    """Valida que el archivo no esté vacío y que los headers son los esperados."""
-    if fieldnames is None:
-        raise ValueError(f"Archivo {csv_file.name} vacío")
-    missing_headers = REQUIRED_HEADERS - set(fieldnames)
-    if missing_headers:
-        missing_names = ", ".join(sorted(missing_headers))
-        raise ValueError(
-            f"Faltan los encabezados: {missing_names} en el CSV {csv_file.name}"
-        )
-
-
-def _validate_has_films(csv_file: Path, film_list: Sequence[Mapping[str, str]]) -> None:
-    """Comprueba que el CSV tiene películas."""
-    if len(film_list) == 0:
-        raise ValueError(
-            f"No se han encontrado películas en el archivo CSV {csv_file.name}"
-        )
 
 
 def define_processed_name(csv_file: Path) -> Path:
