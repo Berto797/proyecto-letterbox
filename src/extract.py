@@ -33,25 +33,6 @@ def _get_single_csv(input_path: Path, csv_files: Sequence[Path]) -> Path:
     return csv_files[0]
 
 
-def _extract_csv(csv_file: Path) -> list[dict[str, str]]:
-    """Lee el CSV y devuelve sus filas como diccionarios.
-
-    Comprueba que tiene los encabezados obligatorios y al menos una
-    película. El archivo tiene que estar en UTF-8 (con o sin BOM).
-    """
-    try:
-        with open(csv_file, encoding="utf-8-sig", newline="") as f:
-            reader = csv.DictReader(f)
-            _validate_headers(csv_file, reader.fieldnames)
-            film_list = list(reader)
-            _validate_has_films(csv_file, film_list)
-            return film_list
-    except UnicodeDecodeError as e:
-        raise ValueError(
-            f"El archivo {csv_file.name} no está codificado en UTF-8"
-        ) from e
-
-
 def _validate_headers(csv_file: Path, fieldnames: Sequence[str] | None) -> None:
     """Valida que el archivo no esté vacío y que los headers son los esperados."""
     if fieldnames is None:
@@ -70,6 +51,25 @@ def _validate_has_films(csv_file: Path, film_list: Sequence[Mapping[str, str]]) 
         raise ValueError(
             f"No se han encontrado películas en el archivo CSV {csv_file.name}"
         )
+
+
+def _extract_csv(csv_file: Path) -> list[dict[str, str]]:
+    """Lee el CSV y devuelve sus filas como diccionarios.
+
+    Comprueba que tiene los encabezados obligatorios y al menos una
+    película. El archivo tiene que estar en UTF-8 (con o sin BOM).
+    """
+    try:
+        with open(csv_file, encoding="utf-8-sig", newline="") as f:
+            reader = csv.DictReader(f)
+            _validate_headers(csv_file, reader.fieldnames)
+            film_list = list(reader)
+            _validate_has_films(csv_file, film_list)
+            return film_list
+    except UnicodeDecodeError as e:
+        raise ValueError(
+            f"El archivo {csv_file.name} no está codificado en UTF-8"
+        ) from e
 
 
 def define_processed_name(csv_file: Path) -> Path:
